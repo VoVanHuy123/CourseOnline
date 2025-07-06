@@ -1,8 +1,8 @@
 """create tables
 
-Revision ID: a18bbcb3c2ca
+Revision ID: 835441d1274c
 Revises: 
-Create Date: 2025-07-01 17:03:00.466621
+Create Date: 2025-07-05 09:30:12.496398
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'a18bbcb3c2ca'
+revision = '835441d1274c'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -29,20 +29,16 @@ def upgrade():
     op.create_table('user',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(length=50), nullable=False),
-    sa.Column('password', sa.String(length=50), nullable=False),
+    sa.Column('password', sa.String(length=128), nullable=False),
     sa.Column('first_name', sa.String(length=50), nullable=False),
     sa.Column('last_name', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=50), nullable=True),
     sa.Column('phonenumber', sa.String(length=15), nullable=True),
-    sa.Column('role', sa.Enum('ADMIN', 'STUDENT', 'TEACHER', name='userrole'), nullable=False),
+    sa.Column('role', sa.Enum('ADMIN', 'STUDENT', 'TEACHER', name='userrole', native_enum=False), nullable=False),
+    sa.Column('is_validate', sa.Boolean(), nullable=True),
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.Column('current_workplace', sa.String(length=100), nullable=True),
-    sa.Column('degree', sa.String(length=100), nullable=True),
-    sa.Column('student_code', sa.String(length=25), nullable=False),
-    sa.Column('university', sa.String(length=50), nullable=False),
-    sa.Column('gender', sa.Enum('MALE', 'FEMALE', 'ORTHER', name='gender'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('phonenumber'),
@@ -61,6 +57,21 @@ def upgrade():
     sa.Column('is_active', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
     sa.ForeignKeyConstraint(['teacher_id'], ['user.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('student',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('student_code', sa.String(length=25), nullable=False),
+    sa.Column('university', sa.String(length=50), nullable=False),
+    sa.Column('gender', sa.Enum('MALE', 'FEMALE', 'ORTHER', name='gender', native_enum=False), nullable=False),
+    sa.ForeignKeyConstraint(['id'], ['user.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('teacher',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('current_workplace', sa.String(length=100), nullable=True),
+    sa.Column('degree', sa.String(length=100), nullable=True),
+    sa.ForeignKeyConstraint(['id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('chapter',
@@ -155,6 +166,8 @@ def downgrade():
     op.drop_table('enrollment')
     op.drop_table('course_review')
     op.drop_table('chapter')
+    op.drop_table('teacher')
+    op.drop_table('student')
     op.drop_table('course')
     op.drop_table('user')
     op.drop_table('category')
