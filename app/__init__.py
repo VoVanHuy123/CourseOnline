@@ -8,6 +8,7 @@ from .admin.admin import init_admin
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
 from flask_cors import CORS
+from config import Config
 
 def create_app(config_class='config.Config'):
     app = Flask(__name__)
@@ -19,6 +20,7 @@ def create_app(config_class='config.Config'):
     login_manager.init_app(app)
     jwt.init_app(app)
     init_admin(app)
+    Config.init_cloudinary()
 
     # Cho phép frontend React truy cập Flask
     CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})

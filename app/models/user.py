@@ -22,6 +22,7 @@ class User(BaseModel,UserMixin):
     email = Column(String(50),nullable=True,unique=True)
     phonenumber = Column(String(15),nullable=True,unique=True)
     role = Column(Enum(UserRole, native_enum=False), nullable=False)
+    avatar = Column(String(225),nullable=True)
     is_validate = Column(Boolean,default=False)
     __mapper_args__ = {
         'polymorphic_identity': 'user',

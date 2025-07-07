@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import secrets
+import cloudinary
 load_dotenv()
 
 class Config:
@@ -10,3 +11,10 @@ class Config:
     )
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt-secret-key")
     SECRET_KEY = secrets.token_hex(32)
+
+    def init_cloudinary():
+        cloudinary.config(
+            cloud_name="dnzjjdg0v",
+            api_key="123958894742992",
+            api_secret="kQugdU7BMnVH5E4OYtFLvGKrHfk",
+        )

@@ -16,6 +16,7 @@ class Course(BaseModel):
     teacher_id = Column(Integer, ForeignKey('user.id'))
     category_id = Column(Integer, ForeignKey('category.id'))
     is_sequential = Column(Boolean, default=True)
+    is_public = Column(Boolean,default=False)
 
     chapters = relationship('Chapter', backref='course', lazy=True)
     enrollments = relationship('Enrollment', backref='course', lazy=True)
@@ -43,6 +44,7 @@ class Lesson(BaseModel):
     description = Column(Text)
     type = Column(Enum(Type))  # 'text', 'video', 'pdf', ...
     content_url = Column(String(255))
+    image = Column(String(255),nullable=True)
     is_published = Column(Boolean, default=False)
     order = Column(Integer)
     is_locked = Column(Boolean, default=True)
