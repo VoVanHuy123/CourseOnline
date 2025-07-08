@@ -37,7 +37,6 @@ def register():
     try:
         data = request.get_json()
         role = data.get("role")
-        print("DỮ LIỆU GỬI LÊN:", data)
         if role == "student":
             schema = StudentRegisterSchema()
             validated_data = schema.load(data)
