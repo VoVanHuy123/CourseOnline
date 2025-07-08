@@ -12,7 +12,7 @@ class Course(BaseModel):
     title = Column(String(100),nullable=False)
     description = Column(Text)
     price = Column(Float,nullable=False)
-
+    image = Column(String(255),nullable=True)
     teacher_id = Column(Integer, ForeignKey('user.id'))
     category_id = Column(Integer, ForeignKey('category.id'))
     is_sequential = Column(Boolean, default=True)
