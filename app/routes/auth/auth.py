@@ -13,7 +13,7 @@ import traceback
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST'],provide_automatic_options=False)
 @doc(description="Đăng nhập và nhận access token", tags=["Auth"])
 @use_kwargs(UserLoginSchema, location="json")
 def login(username, password):
@@ -31,7 +31,7 @@ def login(username, password):
 
 
 
-@auth_bp.route('/register', methods=['POST'])
+@auth_bp.route('/register', methods=['POST'],provide_automatic_options=False)
 @doc(description="Đăng ký tài khoản", tags=["Auth"])
 def register():
     try:

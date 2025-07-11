@@ -1,8 +1,12 @@
 from flask import Flask
 
 from .extensions import db, migrate, login_manager, jwt
+
 from .routes.auth.auth import auth_bp,user_register_docs
 from .routes.course.course import course_bp,course_register_docs
+from .routes.review.review import review_bp,review_register_docs
+from .routes.comment.comment import comment_bp,comment_register_docs
+
 from .admin.admin import init_admin
 
 from apispec import APISpec
@@ -30,6 +34,8 @@ def create_app(config_class='config.Config'):
     # Đăng  blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(course_bp)
+    app.register_blueprint(review_bp)
+    app.register_blueprint(comment_bp)
 
     # Flask-APISpec config
     app.config.update({
@@ -51,5 +57,7 @@ def create_app(config_class='config.Config'):
     # đăng ký route với docs
     user_register_docs(docs)
     course_register_docs(docs)
+    review_register_docs(docs)
+    comment_register_docs(docs)
 
     return app

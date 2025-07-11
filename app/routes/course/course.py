@@ -12,7 +12,7 @@ import cloudinary.uploader
 
 course_bp = Blueprint("course",__name__,url_prefix="/courses")
 
-@course_bp.route("/", methods=["GET"])
+@course_bp.route("/", methods=["GET"],provide_automatic_options=False)
 @doc(description="Khóa học", tags=["Course"])
 @marshal_with(CourseSchema(many=True), code=200)  
 def list_courses():
@@ -103,8 +103,8 @@ def delete_course(course_id):
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 
-@course_bp.route("/chapters",methods = ['POST'])
-@doc(description="Tạo Chương mới",tags = ["Course"],provide_automatic_options=False)
+@course_bp.route("/chapters",methods = ['POST'],provide_automatic_options=False)
+@doc(description="Tạo Chương mới",tags = ["Course"])
 @use_kwargs(ChapterSchema, location="json")
 @marshal_with(ChapterCreateResponseSchema,201)
 @teacher_required
@@ -162,7 +162,7 @@ def delete_chapter(chapter_id):
 
     
 
-@course_bp.route("/lessons", methods=['POST'])
+@course_bp.route("/lessons", methods=['POST'],provide_automatic_options=False)
 @doc(description="Tạo bài học mới có video", tags=["Course"],provide_automatic_options=False)
 @use_kwargs(LessonSchema, location="json")
 @marshal_with(LessonCreateResponseSchema,201)
