@@ -19,6 +19,54 @@ def list_courses():
     courses = course_services.get_courses()
     return courses
 
+@course_bp.route("/<int:course_id>", methods=["GET"])
+@doc(description="Lấy chi tiết khóa học theo ID", tags=["Course"])
+@marshal_with(CourseSchema, code=200)
+def get_course_detail(course_id):
+    """API lấy chi tiết khóa học theo ID"""
+    course = course_services.get_course_by_id(course_id)
+    if not course:
+        return {"message": "Khóa học không tồn tại"}, 404
+    return course
+
+@course_bp.route("/teacher/<int:teacher_id>", methods=["GET"])
+@doc(description="Lấy danh sách khóa học theo giáo viên", tags=["Course"])
+@marshal_with(CourseSchema(many=True), code=200)
+def get_courses_by_teacher(teacher_id):
+    """API lấy danh sách khóa học của một giáo viên"""
+    courses = course_services.get_courses_by_teacher(teacher_id)
+    return courses
+
+@course_bp.route("/category/<int:category_id>", methods=["GET"])
+@doc(description="Lấy danh sách khóa học theo danh mục", tags=["Course"])
+@marshal_with(CourseSchema(many=True), code=200)
+def get_courses_by_category(category_id):
+    """API lấy danh sách khóa học theo danh mục"""
+    courses = course_services.get_courses_by_category(category_id)
+    return courses
+
+@course_bp.route("/student/<int:student_id>", methods=["GET"])
+@doc(description="Lấy danh sách khóa học đã đăng ký của học viên", tags=["Course"])
+@marshal_with(CourseSchema(many=True), code=200)
+def get_courses_by_student(student_id):
+    """API lấy danh sách khóa học mà học viên đã đăng ký"""
+    courses = course_services.get_courses_by_student(student_id)
+    return courses
+
+@course_bp.route("/search", methods=["GET"])
+@doc(description="Tìm kiếm khóa học theo từ khóa", tags=["Course"])
+@marshal_with(CourseSchema(many=True), code=200)
+def search_courses():
+    """API tìm kiếm khóa học theo từ khóa trong title và description"""
+    # Lấy tham số query từ URL
+    query = request.args.get('q', '').strip()
+
+    if not query:
+        return {"message": "Vui lòng nhập từ khóa tìm kiếm"}, 400
+
+    courses = course_services.search_courses(query)
+    return courses
+
 #
 
 @course_bp.route("/", methods=['POST'],provide_automatic_options=False)
@@ -269,6 +317,11 @@ def delete_lesson(lesson_id):
 #đăng kí các hàm ở đây để hiện lên swagger
 def course_register_docs(docs):
     docs.register(list_courses, blueprint='course')
+    docs.register(get_course_detail, blueprint='course')
+    docs.register(get_courses_by_teacher, blueprint='course')
+    docs.register(get_courses_by_category, blueprint='course')
+    docs.register(get_courses_by_student, blueprint='course')
+    docs.register(search_courses, blueprint='course')
     docs.register(create_course, blueprint='course')
     docs.register(create_chapter, blueprint='course')
     docs.register(create_lesson, blueprint='course')
