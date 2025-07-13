@@ -18,6 +18,24 @@ def teacher_required(fn):
 
         return fn(*args, **kwargs)
     return wrapper
+
+def student_required(fn):
+    @wraps(fn)
+    @jwt_required()
+    def wrapper(*args, **kwargs):
+        user_id = get_jwt_identity()
+        claims = get_jwt()
+        role = claims.get("role")
+        if not user_id:
+            raise Unauthorized(description="Không có token hoặc token không hợp lệ")
+
+        if role != "student":
+            raise Forbidden(description="Chỉ học sinh mới được phép truy cập")
+
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 def admin_required(fn):
     @wraps(fn)
     @jwt_required()

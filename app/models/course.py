@@ -28,6 +28,7 @@ class Chapter(BaseModel):
     id = Column(Integer, primary_key=True)
     title = Column(String(100))
     description = Column(Text)
+    order = Column(Integer)
 
     course_id = Column(Integer, ForeignKey('course.id',ondelete="CASCADE"))
 
