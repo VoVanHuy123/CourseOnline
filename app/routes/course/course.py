@@ -9,7 +9,7 @@ from flask_jwt_extended import  get_jwt_identity
 from app.extensions import db
 import traceback
 import cloudinary.uploader
-
+# from flask_jwt_extended import jwt_required
 course_bp = Blueprint("course",__name__,url_prefix="/courses")
 
 @course_bp.route("/", methods=["GET"])
@@ -264,6 +264,134 @@ def delete_lesson(lesson_id):
     except Exception as e:
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+    
+
+# @course_bp.route("/stats/total-counts", methods=["GET"], provide_automatic_options=False)
+# @doc(description="Thống kê tổng số lượng", tags=["Course Stats"])
+# def get_total_counts():
+#     """Thống kê tổng số lượng khóa học, chương, bài học, danh mục"""
+#     try:
+#         stats = course_services.get_total_counts()
+#         if not stats:
+#             return {"msg": "Không tìm thấy dữ liệu thống kê"}, 404
+#         return {"msg": "Lấy thống kê tổng số lượng thành công", "data": stats}, 200
+#     except Exception as e:
+#         traceback.print_exc()
+#         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+# @course_bp.route("/stats/courses-by-category", methods=["GET"], provide_automatic_options=False)
+# @doc(description="Thống kê khóa học theo danh mục", tags=["Course Stats"])
+# def get_courses_by_category():
+#     """Thống kê số lượng khóa học theo từng danh mục"""
+#     try:
+#         stats = course_services.get_courses_by_category()
+#         if not stats:
+#             return {"msg": "Không tìm thấy dữ liệu thống kê theo danh mục"}, 404
+#         return {"msg": "Lấy thống kê theo danh mục thành công", "data": stats}, 200
+#     except Exception as e:
+#         traceback.print_exc()
+#         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+# @course_bp.route("/stats/lesson-status", methods=["GET"], provide_automatic_options=False)
+# @doc(description="Thống kê trạng thái bài học", tags=["Course Stats"])
+# def get_lesson_status_stats():
+#     """Thống kê số lượng bài học đã/chưa xuất bản"""
+#     try:
+#         stats = course_services.get_lesson_status_stats()
+#         if not stats:
+#             return {"msg": "Không tìm thấy dữ liệu thống kê trạng thái bài học"}, 404
+#         return {"msg": "Lấy thống kê trạng thái bài học thành công", "data": stats}, 200
+#     except Exception as e:
+#         traceback.print_exc()
+#         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+# @course_bp.route("/stats/top-teachers", methods=["GET"], provide_automatic_options=False)
+# @doc(description="Top 5 giảng viên có nhiều khóa học nhất", tags=["Course Stats"])
+# def get_top_teachers():
+#     """Xếp hạng giảng viên theo số lượng khóa học"""
+#     try:
+#         stats = course_services.get_top_teachers()
+#         if not stats:
+#             return {"msg": "Không tìm thấy dữ liệu giảng viên"}, 404
+#         return {"msg": "Lấy top giảng viên thành công", "data": stats}, 200
+#     except Exception as e:
+#         traceback.print_exc()
+#         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+# @course_bp.route("/stats/lesson-types", methods=["GET"], provide_automatic_options=False)
+# @doc(description="Thống kê loại bài học", tags=["Course Stats"])
+# def get_lesson_type_stats():
+#     """Thống kê số lượng bài học theo loại (video, file, text...)"""
+#     try:
+#         stats = course_services.get_lesson_type_stats()
+#         if not stats:
+#             return {"msg": "Không tìm thấy dữ liệu thống kê loại bài học"}, 404
+#         return {"msg": "Lấy thống kê loại bài học thành công", "data": stats}, 200
+#     except Exception as e:
+#         traceback.print_exc()
+#         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/overview", methods=["GET"], provide_automatic_options=False)
+@doc(description="Thống kê tổng quan về khóa học", tags=["Course Stats"])
+@teacher_required
+def get_course_overview_statistics():
+    """Thống kê tổng quan về khóa học"""
+    try:
+        teacher_id = get_jwt_identity()
+        stats = course_services.get_course_overview_statistics(teacher_id)
+        if not stats:
+            return {"msg": "Không tìm thấy dữ liệu thống kê"}, 404
+        return {"msg": "Lấy thống kê tổng quan thành công", "data": stats}, 200
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/enrollment", methods=["GET"], provide_automatic_options=False)
+@doc(description="Thống kê đăng ký khóa học theo thời gian", tags=["Course Stats"])
+@teacher_required
+def get_enrollment_statistics():
+    """Thống kê đăng ký khóa học theo thời gian"""
+    try:
+        period = request.args.get('period', 'month')
+        teacher_id = get_jwt_identity()
+        stats = course_services.get_enrollment_statistics(period, teacher_id)
+        if not stats:
+            return {"msg": "Không tìm thấy dữ liệu thống kê đăng ký"}, 404
+        return {"msg": "Lấy thống kê đăng ký thành công", "data": stats}, 200
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/popular-courses", methods=["GET"], provide_automatic_options=False)
+@doc(description="Thống kê khóa học phổ biến nhất", tags=["Course Stats"])
+@teacher_required
+def get_popular_courses():
+    """Thống kê khóa học phổ biến nhất"""
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        teacher_id = get_jwt_identity()
+        stats = course_services.get_popular_courses_statistics(limit, teacher_id)
+        if not stats:
+            return {"msg": "Không tìm thấy dữ liệu khóa học phổ biến"}, 404
+        return {"msg": "Lấy thống kê khóa học phổ biến thành công", "data": stats}, 200
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/completion-rate", methods=["GET"], provide_automatic_options=False)
+@doc(description="Thống kê tỷ lệ hoàn thành khóa học", tags=["Course Stats"])
+@teacher_required
+def get_completion_rate_statistics():
+    """Thống kê tỷ lệ hoàn thành khóa học"""
+    try:
+        teacher_id = get_jwt_identity()
+        stats = course_services.get_completion_rate_statistics(teacher_id)
+        if not stats:
+            return {"msg": "Không tìm thấy dữ liệu tỷ lệ hoàn thành"}, 404
+        return {"msg": "Lấy thống kê tỷ lệ hoàn thành thành công", "data": stats}, 200
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 # thêm vào swagger-ui
 #đăng kí các hàm ở đây để hiện lên swagger
@@ -278,3 +406,14 @@ def course_register_docs(docs):
     docs.register(delete_course, blueprint='course')
     docs.register(delete_chapter, blueprint='course')
     docs.register(delete_lesson, blueprint='course')
+    # docs.register(get_total_counts, blueprint='course')
+    # docs.register(get_courses_by_category, blueprint='course')
+    # docs.register(get_lesson_status_stats, blueprint='course')
+    # docs.register(get_top_teachers, blueprint='course')
+    # docs.register(get_lesson_type_stats, blueprint='course')
+    # docs.register(get_total_counts, blueprint='course')
+    docs.register(get_course_overview_statistics, blueprint='course')
+    docs.register(get_enrollment_statistics, blueprint='course')
+    docs.register(get_popular_courses, blueprint='course')
+    docs.register(get_completion_rate_statistics, blueprint='course')
+
