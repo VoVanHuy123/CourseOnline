@@ -47,3 +47,12 @@ class LessonSchema(Schema):
     order = fields.Int()
     is_locked = fields.Boolean()
     chapter_id = fields.Int()
+
+class LessonProgressSchema(Schema):
+    lesson_id = fields.Int(required=True)
+    is_completed = fields.Boolean(required=True)
+
+class EnrollmentSchema(Schema):
+    course_id = fields.Int(required=True)
+    progress = fields.Float(required=True)
+    status = fields.Str(required=True)
