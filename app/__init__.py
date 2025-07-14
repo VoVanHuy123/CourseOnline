@@ -4,6 +4,7 @@ from .extensions import db, migrate, login_manager, jwt
 from .routes.auth.auth import auth_bp,user_register_docs
 from .routes.course.course import course_bp,course_register_docs
 from .admin.admin import init_admin
+from .routes.learning.learning import learning_bp, learning_register_docs
 
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
@@ -30,6 +31,7 @@ def create_app(config_class='config.Config'):
     # Đăng  blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(course_bp)
+    app.register_blueprint(learning_bp)
 
     # Flask-APISpec config
     app.config.update({
@@ -51,5 +53,7 @@ def create_app(config_class='config.Config'):
     # đăng ký route với docs
     user_register_docs(docs)
     course_register_docs(docs)
+    learning_register_docs(docs)
+
 
     return app
