@@ -1,25 +1,26 @@
 from flask import Blueprint, jsonify, request
 from flask_apispec import use_kwargs, marshal_with, doc
-from app.schemas.course import CourseSchema,ChapterSchema,LessonSchema,CourseCreateResponseSchema,ChapterCreateResponseSchema,LessonCreateResponseSchema
+from app.schemas.course import CourseSchema,ChapterSchema,LessonSchema,CourseCreateResponseSchema,ChapterCreateResponseSchema,LessonCreateResponseSchema,CategorySchema,ListChapterSchema
 from app.extensions import login_manager
 from app.services import course_services ,services
 from app.services.user_services import get_teacher
-from app.perms.perms import teacher_required
+from app.perms.perms import teacher_required,login_required
+from app.models.course import Type
 from flask_jwt_extended import  get_jwt_identity
 from app.extensions import db
-import traceback
+import traceback,os
 import cloudinary.uploader
 
 course_bp = Blueprint("course",__name__,url_prefix="/courses")
 
-@course_bp.route("/", methods=["GET"],provide_automatic_options=False)
+@course_bp.route("/", methods=["GET"])
 @doc(description="Khóa học", tags=["Course"])
 @marshal_with(CourseSchema(many=True), code=200)  
 def list_courses():
     courses = course_services.get_courses()
     return courses
 
-@course_bp.route("/<int:course_id>", methods=["GET"])
+@course_bp.route("/<int:course_id>", methods=["GET"], provide_automatic_options=False)
 @doc(description="Lấy chi tiết khóa học theo ID", tags=["Course"])
 @marshal_with(CourseSchema, code=200)
 def get_course_detail(course_id):
@@ -69,9 +70,9 @@ def search_courses():
 
 #
 
-@course_bp.route("/", methods=['POST'],provide_automatic_options=False)
+@course_bp.route("", methods=['POST'])
 @doc(description="Tạo khóa học mới", tags=["Course"])
-@use_kwargs(CourseSchema, location="json")  # Input schema
+@use_kwargs(CourseSchema, location="form")  # Input schema
 @marshal_with(CourseCreateResponseSchema, code=201) 
 @teacher_required
 def create_course(**kwargs):
@@ -102,7 +103,7 @@ def create_course(**kwargs):
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 
-@course_bp.route("/<int:course_id>", methods=["PATCH"],provide_automatic_options=False)
+@course_bp.route("/<int:course_id>", methods=["PATCH"])
 @doc(description="Cập nhật khóa học", tags=["Course"])
 @teacher_required
 def update_course(course_id):
@@ -134,7 +135,7 @@ def update_course(course_id):
 
 
 
-@course_bp.route("/<int:course_id>", methods=["DELETE"],provide_automatic_options=False)
+@course_bp.route("/<int:course_id>", methods=["DELETE"])
 @doc(description="Xóa khoá học", tags=["Course"])
 @teacher_required
 def delete_course(course_id):
@@ -151,10 +152,27 @@ def delete_course(course_id):
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 
-@course_bp.route("/chapters",methods = ['POST'],provide_automatic_options=False)
+@course_bp.route("/<int:course_id>/chapters",methods = ['GET'])
+@doc(description="Tạo Chương mới",tags = ["Course"])
+# @use_kwargs(ChapterSchema(many=True), location="json")
+@marshal_with(ListChapterSchema(many=True),200)
+@teacher_required
+def get_course_chapters(course_id):
+    # course_id = kwargs.get("course_id")
+    # chapters = course_services.get_chapter_by_course_id(course_id)
+    # if not chapters:
+    #     return {"msg":"Không tìm thấy khóa học"}
+    try:
+        chapters = course_services.get_chapter_by_course_id(course_id)
+        return chapters
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/chapters",methods = ['POST'])
 @doc(description="Tạo Chương mới",tags = ["Course"])
 @use_kwargs(ChapterSchema, location="json")
-@marshal_with(ChapterCreateResponseSchema,201)
+@marshal_with(ChapterSchema(),201)
 @teacher_required
 def create_chapter(**kwargs):
     course_id = kwargs.get("course_id")
@@ -163,12 +181,12 @@ def create_chapter(**kwargs):
         return {"msg":"Không tìm thấy khóa học"}
     try:
         chapter = course_services.create_chapter_in_db(**kwargs)
-        return {"msg": "Tạo chương thành công", "chapter_title": chapter.title}, 201
+        return chapter, 201
     except Exception as e:
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
     
-@course_bp.route("/chapter/<int:chapter_id>", methods=["PATCH"],provide_automatic_options=False)
+@course_bp.route("/chapter/<int:chapter_id>", methods=["PATCH"])
 @doc(description="Cập nhật chương học", tags=["Course"])
 @teacher_required
 def update_chapter(chapter_id):
@@ -192,7 +210,7 @@ def update_chapter(chapter_id):
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
-@course_bp.route("/chapter/<int:chapter_id>", methods=["DELETE"],provide_automatic_options=False)
+@course_bp.route("/chapter/<int:chapter_id>", methods=["DELETE"])
 @doc(description="Xóa chương học", tags=["Course"])
 @teacher_required
 def delete_chapter(chapter_id):
@@ -210,54 +228,88 @@ def delete_chapter(chapter_id):
 
     
 
-@course_bp.route("/lessons", methods=['POST'],provide_automatic_options=False)
-@doc(description="Tạo bài học mới có video", tags=["Course"],provide_automatic_options=False)
-@use_kwargs(LessonSchema, location="json")
+
+
+ALLOWED_FILE_EXT   = {"pdf", "doc", "docx", "xlsx", "ppt", "pptx", "zip"}
+ALLOWED_VIDEO_EXT  = {"mp4", "mov", "avi", "mkv"}
+ALLOWED_IMAGE_EXT = {"jpg", "jpeg", "png", "gif", "webp"}
+
+def _get_extension(filename: str) -> str:
+    return os.path.splitext(filename)[1][1:].lower()
+@course_bp.route("/lessons", methods=['POST'])
+@doc(description="Tạo bài học mới có video", tags=["Course"])
+@use_kwargs(LessonSchema, location="form")
 @marshal_with(LessonCreateResponseSchema,201)
 @teacher_required
 def create_lesson(**kwargs):
     try:
-        is_locked = False
-        content_url = None
-        chapter_id = kwargs["chapter_id"]
-        lesson_type=kwargs["type"]
+        chapter_id  = kwargs["chapter_id"]
+        lesson_type = kwargs["type"]
 
-        chapter  = course_services.get_chapter_by_id(chapter_id)
+        chapter = course_services.get_chapter_by_id(chapter_id)
         if not chapter:
             return {"msg": "Không tìm thấy chương"}, 404
 
-        # Lấy course của chapter và kiểm tra is_sequential
+        # --- Khóa nếu course is_sequential ---
         course = course_services.get_course_by_id(chapter.course_id)
-        if course and course.is_sequential:
-            is_locked = True  
+        kwargs["is_locked"] = bool(course and course.is_sequential)
 
-        file = request.files.get("content_url")
-        if file:
-            if(lesson_type == "video"):
+        # --- Xử lý file upload ---
+        upload_file = request.files.get("file")  # key='file' trong form-data
+        content_url = None
 
+        if upload_file:
+            ext = _get_extension(upload_file.filename)
+
+            if lesson_type == Type.VIDEO.value:
+                if ext not in ALLOWED_VIDEO_EXT:
+                    return {"msg": "Định dạng video không hỗ trợ"}, 400
                 result = cloudinary.uploader.upload(
-                    file,
-                    resource_type="video"  
+                    upload_file,
+                    resource_type="video",
+                    folder="lessons/videos"
                 )
-                content_url = result['secure_url']
-            elif(lesson_type=="file") :
+            elif lesson_type == Type.FILE.value:
+                if ext not in ALLOWED_FILE_EXT:
+                    return {"msg": "Định dạng tệp không hỗ trợ"}, 400
                 result = cloudinary.uploader.upload(
-                    file,
-                    resource_type="raw" 
+                    upload_file,
+                    resource_type="raw",
+                    folder="lessons/files"
                 )
-                content_url = result['secure_url']
+            elif lesson_type == Type.IMAGE.value:
+                if ext not in ALLOWED_IMAGE_EXT:
+                    return {"msg": "Định dạng ảnh không hỗ trợ"}, 400
+                result = cloudinary.uploader.upload(
+                    upload_file,
+                    resource_type="image",
+                    folder="lessons/images"
+                )
+            else:
+                return {"msg": "Loại bài học không yêu cầu file"}, 400
+
+            content_url = result["secure_url"]
+
         kwargs["content_url"] = content_url
-        kwargs["is_locked"] = is_locked
-        
+
+        # --- Lưu DB ---
         lesson = course_services.create_lesson_in_db(**kwargs)
 
-        return {"msg": "Tạo bài học thành công","lesson_title":lesson.title, "lesson_id": lesson.id}, 201
+        return {
+            "msg"      : "Tạo bài học thành công",
+            "lesson_id": lesson.id,
+            "lesson_title": lesson.title,
+            "content_url": lesson.content_url,
+        }, 201
 
     except Exception as e:
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
     
-@course_bp.route("/lesson/<int:lesson_id>", methods=["PATCH"],provide_automatic_options=False)
+@course_bp.route("/lesson/<int:lesson_id>", methods=["PATCH"])
 @doc(description="Cập nhật bài học", tags=["Course"])
 @teacher_required
 def update_lesson(lesson_id):
@@ -297,7 +349,7 @@ def update_lesson(lesson_id):
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 
-@course_bp.route("/lesson/<int:lesson_id>", methods=["DELETE"],provide_automatic_options=False)
+@course_bp.route("/lesson/<int:lesson_id>", methods=["DELETE"])
 @doc(description="Xóa bài học", tags=["Course"])
 @teacher_required
 def delete_lesson(lesson_id):
@@ -312,6 +364,20 @@ def delete_lesson(lesson_id):
     except Exception as e:
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+    
+@course_bp.route("/categories", methods=["GET"])
+@doc(description="Danh sách Category", tags=["Course"])
+@marshal_with(CategorySchema(many=True),200)
+@login_required
+def list_categorie():
+    try:
+        print("HEADERS:", request.headers)
+        categories = course_services.get_categories()
+        return categories
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
 
 # thêm vào swagger-ui
 #đăng kí các hàm ở đây để hiện lên swagger
@@ -321,6 +387,7 @@ def course_register_docs(docs):
     docs.register(get_courses_by_teacher, blueprint='course')
     docs.register(get_courses_by_category, blueprint='course')
     docs.register(get_courses_by_student, blueprint='course')
+    docs.register(get_course_chapters, blueprint='course')
     docs.register(search_courses, blueprint='course')
     docs.register(create_course, blueprint='course')
     docs.register(create_chapter, blueprint='course')
@@ -331,3 +398,4 @@ def course_register_docs(docs):
     docs.register(delete_course, blueprint='course')
     docs.register(delete_chapter, blueprint='course')
     docs.register(delete_lesson, blueprint='course')
+    docs.register(list_categorie, blueprint='course')

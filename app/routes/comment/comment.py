@@ -15,7 +15,7 @@ comment_bp = Blueprint("comment", __name__,url_prefix="/comments")
 
 from marshmallow import fields
 
-@comment_bp.route("/", methods=["GET"],provide_automatic_options=False)
+@comment_bp.route("/", methods=["GET"])
 @doc(description="Lấy danh sách comment theo lesson_id", tags=["LessonComment"])
 @use_kwargs({"lesson_id": fields.Int(required=True)}, location="query")
 @marshal_with(LessonCommentResponseSchema(many=True))
@@ -25,7 +25,7 @@ def list_lesson_comments(lesson_id):
     return comments, 200
 
 
-@comment_bp.route("/", methods=["POST"],provide_automatic_options=False)
+@comment_bp.route("", methods=["POST"])
 @doc(description="Tạo bình luận bài học", tags=["LessonComment"])
 @use_kwargs(LessonCommentSchema, location="json")
 @marshal_with(LessonCommentResponseSchema, code=201)
@@ -36,7 +36,7 @@ def create_lesson_comment(**kwargs):
     comment = comment_services.create_lesson_comment(**kwargs)
     return comment, 201
 
-@comment_bp.route("/<int:id>", methods=["PUT"],provide_automatic_options=False)
+@comment_bp.route("/<int:id>", methods=["PUT"])
 @doc(description="Cập nhật bình luận", tags=["LessonComment"])
 @use_kwargs(LessonCommentSchema, location="json")
 @marshal_with(LessonCommentResponseSchema)
@@ -47,7 +47,7 @@ def update_lesson_comment(id, **kwargs):
     comment_services.update_comment(comment,**kwargs)
     return comment
 
-@comment_bp.route("/<int:id>", methods=["DELETE"],provide_automatic_options=False)
+@comment_bp.route("/<int:id>", methods=["DELETE"])
 @doc(description="Xóa bình luận", tags=["LessonComment"])
 @login_required
 @owner_required(model=LessonComment, lookup_arg="id")

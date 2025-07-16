@@ -38,6 +38,7 @@ class Type(enum.Enum):
     TEXT = "text"
     VIDEO = 'video'
     FILE = "file"
+    IMAGE = "image"
 
 class Lesson(BaseModel):
     id = Column(Integer, primary_key=True)

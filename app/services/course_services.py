@@ -10,9 +10,13 @@ def get_course_by_id(id):
 
 def get_chapter_by_id(id):
     return Chapter.query.filter_by(id=id).first()
+def get_chapter_by_course_id(id):
+    return Chapter.query.filter_by(course_id=id).all()
 
 def get_category_by_id(id):
     return Category.query.filter_by(id=id).first()
+def get_categories():
+    return Category.query.all()
 
 def create_course_in_db(**kwargs):
     course = Course(**kwargs)
@@ -24,7 +28,8 @@ def create_chapter_in_db(**kwargs):
     chater = Chapter(
         title=kwargs["title"],
         description=kwargs["description"],
-        course_id=kwargs["course_id"]
+        course_id=kwargs["course_id"],
+        order=kwargs["order"],
     )
     db.session.add(chater)
     db.session.commit()

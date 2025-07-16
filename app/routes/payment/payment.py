@@ -82,7 +82,7 @@ def create_vnpayment():
 
 
 # ---------- 2. Xử lý return_url ----------
-@payment_bp.route("/vnpay/return",provide_automatic_options=False)
+@payment_bp.route("/vnpay/return")
 @doc(description="Xóa bài học", tags=["Payment"])
 def vnpay_return():
     """ Xác thực chữ ký khi VNPAY redirect về """

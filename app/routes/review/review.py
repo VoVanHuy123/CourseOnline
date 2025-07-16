@@ -28,7 +28,7 @@ def get_reviews():
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
-@review_bp.route("/", methods=["POST"],provide_automatic_options=False)
+@review_bp.route("/", methods=["POST"])
 @doc(description="Tạo review khóa học", tags=["CourseReview"])
 @use_kwargs(CourseReviewSchema, location="json")
 @marshal_with(CourseReviewResponseSchema, code=201)
@@ -43,7 +43,7 @@ def create_review(**kwargs):
     review = review_service.create_course_review(**kwargs)
     return review, 201
 
-@review_bp.route("/<int:id>", methods=["PUT"],provide_automatic_options=False)
+@review_bp.route("/<int:id>", methods=["PUT"])
 @doc(description="Cập nhật review", tags=["CourseReview"])
 @use_kwargs(CourseReviewSchema, location="json")
 @marshal_with(CourseReviewResponseSchema)
@@ -57,7 +57,7 @@ def update_review(id, **kwargs):
     except Exception as e:
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
-@review_bp.route("/<int:id>", methods=["DELETE"],provide_automatic_options=False)
+@review_bp.route("/<int:id>", methods=["DELETE"])
 @doc(description="Xóa review", tags=["CourseReview"])
 @login_required
 @owner_required(model=CourseReview,lookup_arg="id")

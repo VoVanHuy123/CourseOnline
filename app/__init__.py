@@ -29,7 +29,9 @@ def create_app(config_class='config.Config'):
     Config.init_cloudinary()
 
     # Cho phép frontend React truy cập Flask
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+    # CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+
 
     from app import models
 

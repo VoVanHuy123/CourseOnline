@@ -6,14 +6,17 @@ from app.extensions import login_manager,db
 from app.models.user import User,Student,Teacher
 from werkzeug.security import generate_password_hash
 from marshmallow import  ValidationError
+from flask_jwt_extended import jwt_required,get_jwt_identity
 from app.models.user import Student, Teacher, UserRole
+from datetime import timedelta
+
 
 import traceback
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
-@auth_bp.route('/login', methods=['POST'],provide_automatic_options=False)
+@auth_bp.route('/login', methods=['POST'])
 @doc(description="Đăng nhập và nhận access token", tags=["Auth"])
 @use_kwargs(UserLoginSchema, location="json")
 def login(username, password):
@@ -31,7 +34,7 @@ def login(username, password):
 
 
 
-@auth_bp.route('/register', methods=['POST'],provide_automatic_options=False)
+@auth_bp.route('/register', methods=['POST'])
 @doc(description="Đăng ký tài khoản", tags=["Auth"])
 def register():
     try:
@@ -95,8 +98,17 @@ def user_load(user_id):
     # return get_user_account_by_id(user_id)
     return User.query.get(int(user_id))
 
+# Flask‑JWT‑Extended
+@auth_bp.route('/refresh', methods=['POST'])
+@doc(description="Làm mới tài khoản", tags=["Auth"])
+@jwt_required(refresh=True)
+def refresh():
+    identity = get_jwt_identity()
+    access_token = create_access_token(identity=identity, expires_delta=timedelta(minutes=10))
+    return jsonify(access=access_token)
 
 #đăng kí các hàm ở đây để hiện lên swagger
 def user_register_docs(docs):
     docs.register(login, blueprint='auth')
     docs.register(register, blueprint='auth')
+    docs.register(refresh, blueprint='auth')
