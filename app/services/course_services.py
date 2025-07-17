@@ -2,17 +2,38 @@ from app.extensions import db
 from app.models.course import Course,Chapter,Lesson,Category,Enrollment
 from app.models.user import Teacher
 from sqlalchemy import or_
-def get_courses():
-    return Course.query.all()
+# from flask_sqlalchemy import Pagination
+def get_courses(page, per_page):
+    return Course.query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # return Course.query.filter_by(is_public = True).all()
+def get_courses_by_teacher_id_not_public(teacher_id, page, per_page):
+    return Course.query.filter_by(teacher_id=teacher_id, is_public=False).paginate(page=page, per_page=per_page, error_out=False)
+
+    # return Course.query.filter(
+    #     Course.is_public == False,
+    #     Course.teacher_id == id
+    # ).all()
+def get_courses_by_teacher_id_public(teacher_id, page, per_page):
+    return Course.query.filter_by(teacher_id=teacher_id, is_public=True).paginate(page=page, per_page=per_page, error_out=False)
+
+    # return Course.query.filter(
+    #     Course.is_public == True,
+    #     Course.teacher_id == id
+    # ).all()
 
 def get_course_by_id(id):
     return Course.query.filter_by(id=id).first()
 
 def get_chapter_by_id(id):
     return Chapter.query.filter_by(id=id).first()
+def get_chapter_by_course_id(id):
+    return Chapter.query.filter_by(course_id=id).all()
 
 def get_category_by_id(id):
     return Category.query.filter_by(id=id).first()
+def get_categories():
+    return Category.query.all()
 
 def create_course_in_db(**kwargs):
     course = Course(**kwargs)
@@ -24,7 +45,8 @@ def create_chapter_in_db(**kwargs):
     chater = Chapter(
         title=kwargs["title"],
         description=kwargs["description"],
-        course_id=kwargs["course_id"]
+        course_id=kwargs["course_id"],
+        order=kwargs["order"],
     )
     db.session.add(chater)
     db.session.commit()

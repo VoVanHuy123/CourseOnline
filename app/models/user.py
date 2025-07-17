@@ -29,6 +29,7 @@ class User(BaseModel,UserMixin):
         'polymorphic_on': role 
     }
 
+
     def set_password(self, password):
         self.password = generate_password_hash(password)
 
@@ -60,6 +61,6 @@ class Student(User):
     university = Column(String(50),nullable=False)
     gender = Column(Enum(Gender, native_enum=False, values_callable=lambda x: [e.value for e in x]), nullable=False)
 
-    enrollments = relationship('Enrollment', backref='student', lazy=True)
-    lesson_progress = relationship('LessonProgress', backref='student', lazy=True)
-    reviews = relationship('CourseReview', backref='student', lazy=True)
+    enrollments = relationship('Enrollment', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)
+    lesson_progress = relationship('LessonProgress', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)
+    reviews = relationship('CourseReview', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)

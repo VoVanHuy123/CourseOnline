@@ -1,8 +1,13 @@
 from flask import Flask
 
 from .extensions import db, migrate, login_manager, jwt
+
 from .routes.auth.auth import auth_bp,user_register_docs
 from .routes.course.course import course_bp,course_register_docs
+from .routes.review.review import review_bp,review_register_docs
+from .routes.comment.comment import comment_bp,comment_register_docs
+from.routes.payment.payment import payment_bp,payment_register_docs
+
 from .admin.admin import init_admin
 from .routes.learning.learning import learning_bp, learning_register_docs
 
@@ -24,13 +29,18 @@ def create_app(config_class='config.Config'):
     Config.init_cloudinary()
 
     # Cho phép frontend React truy cập Flask
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+    # CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+
 
     from app import models
 
     # Đăng  blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(course_bp)
+    app.register_blueprint(review_bp)
+    app.register_blueprint(comment_bp)
+    app.register_blueprint(payment_bp)
     app.register_blueprint(learning_bp)
 
     # Flask-APISpec config
@@ -53,6 +63,9 @@ def create_app(config_class='config.Config'):
     # đăng ký route với docs
     user_register_docs(docs)
     course_register_docs(docs)
+    review_register_docs(docs)
+    comment_register_docs(docs)
+    payment_register_docs(docs)
     learning_register_docs(docs)
 
 
