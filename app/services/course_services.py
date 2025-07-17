@@ -2,8 +2,25 @@ from app.extensions import db
 from app.models.course import Course,Chapter,Lesson,Category,Enrollment
 from app.models.user import Teacher
 from sqlalchemy import or_
-def get_courses():
-    return Course.query.all()
+# from flask_sqlalchemy import Pagination
+def get_courses(page, per_page):
+    return Course.query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # return Course.query.filter_by(is_public = True).all()
+def get_courses_by_teacher_id_not_public(teacher_id, page, per_page):
+    return Course.query.filter_by(teacher_id=teacher_id, is_public=False).paginate(page=page, per_page=per_page, error_out=False)
+
+    # return Course.query.filter(
+    #     Course.is_public == False,
+    #     Course.teacher_id == id
+    # ).all()
+def get_courses_by_teacher_id_public(teacher_id, page, per_page):
+    return Course.query.filter_by(teacher_id=teacher_id, is_public=True).paginate(page=page, per_page=per_page, error_out=False)
+
+    # return Course.query.filter(
+    #     Course.is_public == True,
+    #     Course.teacher_id == id
+    # ).all()
 
 def get_course_by_id(id):
     return Course.query.filter_by(id=id).first()

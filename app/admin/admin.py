@@ -40,6 +40,7 @@ def init_admin(app):
     admin.add_view(StudentAdmin(Student, db.session))
     admin.add_view(TeacherAdmin(Teacher, db.session))
     admin.add_view(ModelView(Category, db.session))
+    # admin.add_view(ModelView(Course, db.session))
     # admin.add_view(CourseAdmin(Course, db.session)) # dòng dây lỗi
     admin.add_view(ModelView(Chapter, db.session))
     admin.add_view(ModelView(Lesson, db.session))

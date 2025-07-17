@@ -35,17 +35,25 @@ class ChapterSchema(Schema):
 class ListChapterSchema(Schema):
     id = fields.Int(dump_only=True)
     title = fields.Str(required=True)
-    # description = fields.Str()
+    description = fields.Str()
     # course_id = fields.Int(required=True)
     order = fields.Int(required=True)
-    # lessons = fields.List(fields.Nested('LessonNameSchema'), dump_only=True)
+    lessons = fields.List(fields.Nested('LessonInChapterDumpSchema'), dump_only=True)
 
 class LessonNameSchema(Schema):
     id = fields.Int(dump_only=True)
     title = fields.Str(required=True)
     description = fields.Str(required=True)
 
-
+class LessonInChapterDumpSchema(Schema):
+    id           = fields.Int(dump_only=True)
+    title        = fields.Str(required=True)
+    description  = fields.Str(required=True)
+    type         = fields.Str(required=True, validate=lambda v: v in Type._value2member_map_)
+    chapter_id   = fields.Int(required=True)
+    order        = fields.Int()
+    content_url = fields.Str(required=False)
+    is_published = fields.Bool()
 class LessonSchema(Schema):
     # id = fields.Int(dump_only=True)
     # title = fields.Str(required=True)

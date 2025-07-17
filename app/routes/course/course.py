@@ -1,12 +1,14 @@
 from flask import Blueprint, jsonify, request
 from flask_apispec import use_kwargs, marshal_with, doc
-from app.schemas.course import CourseSchema,ChapterSchema,LessonSchema,CourseCreateResponseSchema,ChapterCreateResponseSchema,LessonCreateResponseSchema,CategorySchema,ListChapterSchema
+from app.schemas.course import CourseSchema,ChapterSchema,LessonSchema,CourseCreateResponseSchema,ChapterCreateResponseSchema,LessonInChapterDumpSchema,CategorySchema,ListChapterSchema
 from app.extensions import login_manager
 from app.services import course_services ,services
 from app.services.user_services import get_teacher
 from app.perms.perms import teacher_required,login_required
 from app.models.course import Type
 from flask_jwt_extended import  get_jwt_identity
+# from flask_sqlalchemy import Pagination
+from marshmallow import fields
 from app.extensions import db
 import traceback,os
 import cloudinary.uploader
@@ -14,11 +16,52 @@ import cloudinary.uploader
 course_bp = Blueprint("course",__name__,url_prefix="/courses")
 
 @course_bp.route("/", methods=["GET"])
-@doc(description="Khóa học", tags=["Course"])
-@marshal_with(CourseSchema(many=True), code=200)  
-def list_courses():
-    courses = course_services.get_courses()
-    return courses
+@doc(description="Khóa học của tất cả giáo viên", tags=["Course"])
+@use_kwargs({
+    "page": fields.Int(missing=1),
+    "per_page": fields.Int(missing=10)
+}, location="query")
+def list_courses(page, per_page):
+    pagination = course_services.get_courses(page, per_page)
+    return {
+        "data": CourseSchema(many=True).dump(pagination.items),
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "total_items": pagination.total,
+        "total_pages": pagination.pages
+    }
+@course_bp.route("/teacher/<int:teacher_id>/not-public", methods=["GET"])
+@doc(description="Khóa học của giáo viên chưa đăng tải", tags=["Course"])
+@teacher_required
+@use_kwargs({
+    "page": fields.Int(missing=1),
+    "per_page": fields.Int(missing=10)
+}, location="query")
+def list_teacher_courses_not_public(teacher_id, page, per_page):
+    pagination = course_services.get_courses_by_teacher_id_not_public(teacher_id, page, per_page)
+    return {
+        "data": CourseSchema(many=True).dump(pagination.items),
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "total_items": pagination.total,
+        "total_pages": pagination.pages
+    }
+@course_bp.route("/teacher/<int:teacher_id>/public", methods=["GET"])
+@doc(description="Khóa học của giáo viên đã đăng tải", tags=["Course"])
+@teacher_required
+@use_kwargs({
+    "page": fields.Int(missing=1),
+    "per_page": fields.Int(missing=10)
+}, location="query")
+def list_teacher_courses_public(teacher_id, page, per_page):
+    pagination = course_services.get_courses_by_teacher_id_public(teacher_id, page, per_page)
+    return {
+        "data": CourseSchema(many=True).dump(pagination.items),
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "total_items": pagination.total,
+        "total_pages": pagination.pages
+    }
 
 @course_bp.route("/<int:course_id>", methods=["GET"], provide_automatic_options=False)
 @doc(description="Lấy chi tiết khóa học theo ID", tags=["Course"])
@@ -186,8 +229,10 @@ def create_chapter(**kwargs):
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
     
-@course_bp.route("/chapter/<int:chapter_id>", methods=["PATCH"])
+@course_bp.route("/chapters/<int:chapter_id>", methods=["PATCH"])
 @doc(description="Cập nhật chương học", tags=["Course"])
+# @use_kwargs(ChapterSchema,location="json")
+# @marshal_with(ChapterSchema,200)
 @teacher_required
 def update_chapter(chapter_id):
     try:
@@ -203,6 +248,8 @@ def update_chapter(chapter_id):
             chapter.description = data["description"]
         if "course_id" in data:
             chapter.course_id = data["course_id"]
+        if "order" in data:
+            chapter.order = data["order"]
 
         db.session.commit()
         return {"msg": "Cập nhật chương thành công"}, 200
@@ -239,7 +286,7 @@ def _get_extension(filename: str) -> str:
 @course_bp.route("/lessons", methods=['POST'])
 @doc(description="Tạo bài học mới có video", tags=["Course"])
 @use_kwargs(LessonSchema, location="form")
-@marshal_with(LessonCreateResponseSchema,201)
+@marshal_with(LessonInChapterDumpSchema,201)
 @teacher_required
 def create_lesson(**kwargs):
     try:
@@ -295,12 +342,13 @@ def create_lesson(**kwargs):
         # --- Lưu DB ---
         lesson = course_services.create_lesson_in_db(**kwargs)
 
-        return {
-            "msg"      : "Tạo bài học thành công",
-            "lesson_id": lesson.id,
-            "lesson_title": lesson.title,
-            "content_url": lesson.content_url,
-        }, 201
+        # return {
+        #     "msg"      : "Tạo bài học thành công",
+        #     "lesson_id": lesson.id,
+        #     "lesson_title": lesson.title,
+        #     "content_url": lesson.content_url,
+        # }, 201
+        return lesson, 201
 
     except Exception as e:
         traceback.print_exc()
@@ -309,8 +357,9 @@ def create_lesson(**kwargs):
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
     
-@course_bp.route("/lesson/<int:lesson_id>", methods=["PATCH"])
+@course_bp.route("/lessons/<int:lesson_id>", methods=["PATCH"])
 @doc(description="Cập nhật bài học", tags=["Course"])
+# @use_kwargs(LessonSchema, location="form")
 @teacher_required
 def update_lesson(lesson_id):
     try:
@@ -319,7 +368,7 @@ def update_lesson(lesson_id):
             return {"msg": "Không tìm thấy bài học"}, 404
 
         data = request.form
-        file = request.files.get("content_url")
+        file = request.files.get("file")
 
         if "title" in data:
             lesson.title = data["title"]
@@ -335,12 +384,43 @@ def update_lesson(lesson_id):
             lesson.is_published = data["is_published"] == "true"
         if "is_locked" in data:
             lesson.is_locked = data["is_locked"] == "true"
+        lesson_type = data.get("type", lesson.type) 
+        upload_file = request.files.get("file")
+        if upload_file:
+            ext = _get_extension(upload_file.filename)
 
-        if file:
-            # Upload lại nếu có file mới
-            resource_type = "video" if lesson.type == "video" else "raw"
-            result = cloudinary.uploader.upload(file, resource_type=resource_type)
+            if lesson_type == Type.VIDEO.value:
+                if ext not in ALLOWED_VIDEO_EXT:
+                    return {"msg": "Định dạng video không hỗ trợ"}, 400
+                result = cloudinary.uploader.upload(
+                    upload_file,
+                    resource_type="video",
+                    folder="lessons/videos"
+                )
+            elif lesson_type == Type.FILE.value:
+                if ext not in ALLOWED_FILE_EXT:
+                    return {"msg": "Định dạng tệp không hỗ trợ"}, 400
+                result = cloudinary.uploader.upload(
+                    upload_file,
+                    resource_type="raw",
+                    folder="lessons/files"
+                )
+            elif lesson_type == Type.IMAGE.value:
+                if ext not in ALLOWED_IMAGE_EXT:
+                    return {"msg": "Định dạng ảnh không hỗ trợ"}, 400
+                result = cloudinary.uploader.upload(
+                    upload_file,
+                    resource_type="image",
+                    folder="lessons/images"
+                )
+            else:
+                return {"msg": "Loại bài học không yêu cầu file"}, 400
             lesson.content_url = result["secure_url"]
+        # if file and file.filename::
+        #     # Upload lại nếu có file mới
+        #     resource_type = "video" if lesson.type == "video" else "raw"
+        #     result = cloudinary.uploader.upload(file, resource_type=resource_type)
+        #     lesson.content_url = result["secure_url"]
 
         db.session.commit()
         return {"msg": "Cập nhật bài học thành công"}, 200
@@ -385,6 +465,9 @@ def course_register_docs(docs):
     docs.register(list_courses, blueprint='course')
     docs.register(get_course_detail, blueprint='course')
     docs.register(get_courses_by_teacher, blueprint='course')
+    docs.register(list_teacher_courses_not_public, blueprint='course')
+    docs.register(list_teacher_courses_public, blueprint='course')
+    
     docs.register(get_courses_by_category, blueprint='course')
     docs.register(get_courses_by_student, blueprint='course')
     docs.register(get_course_chapters, blueprint='course')

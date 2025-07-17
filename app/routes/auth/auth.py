@@ -21,9 +21,10 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @use_kwargs(UserLoginSchema, location="json")
 def login(username, password):
     user = User.query.filter_by(username=username).first()
-    if not user or not user.check_password(password):
-        return {"msg": "Đăng nhập thất bại"}, 401
-
+    if not user :
+        return {"msg": "Sai username","field":"username"}, 401
+    if not user.check_password(password):
+        return {"msg": "Sai mật khẩu","field":"password"}, 401
     access_token = create_access_token(
     identity=str(user.id), 
     additional_claims={"role": user.role.value}
