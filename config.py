@@ -14,7 +14,7 @@ class Config:
 
     def init_cloudinary():
         cloudinary.config(
-            cloud_name="dnzjjdg0v",
-            api_key="123958894742992",
-            api_secret="kQugdU7BMnVH5E4OYtFLvGKrHfk",
+            cloud_name=os.getenv("CLOUD_NAME"),
+            api_key=os.getenv("API_KEY"),
+            api_secret=os.getenv("API_SECRET"),
         )
