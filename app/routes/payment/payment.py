@@ -1,110 +1,190 @@
-import os
-import hashlib
-import hmac
 from urllib.parse import urlencode
 from flask_apispec import use_kwargs, marshal_with, doc
-from flask import Blueprint, request, redirect, current_app
+from flask import Blueprint, request, redirect, current_app, jsonify
+from flask_jwt_extended import get_jwt_identity
 from app.services.course_services import get_course_by_id
+from app.services import payment_services, enrollment_services
+from app.schemas.payment import PaymentRequestSchema, VNPayPaymentResponseSchema, MoMoPaymentResponseSchema, PaymentIPNSchema
+from app.perms.perms import student_required
 from werkzeug.exceptions import NotFound
 from datetime import datetime
 from dotenv import load_dotenv
+import traceback
 
 load_dotenv()
 
-# ====== Thông số cấu hình lấy từ .env ======
-VNP_TMN_CODE   = os.getenv("VNPAY_TMN_CODE")
-VNP_HASH_SECRET = os.getenv("VNPAY_HASH_SECRET_KEY")
-VNP_URL        = os.getenv("VNPAY_PAYMENT_URL")      # sandbox: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-VNP_RETURN_URL = os.getenv("VNPAY_RETURN_URL")       # ví dụ: https://abc.ngrok.app/payment/vnpay/return
-
-# ====== Blueprint khai báo ======
 payment_bp = Blueprint("payment", __name__, url_prefix="/payment")
 
-# ---------- 1. Tạo URL thanh toán ----------
-@payment_bp.route("/vnpay", methods=["POST"], provide_automatic_options=False)
-@doc(description="Xóa bài học", tags=["Payment"])
-def create_vnpayment():
+@payment_bp.route("/vnpay", methods=["POST"])
+@doc(description="Tạo payment request với VNPay", tags=["Payment"])
+@use_kwargs(PaymentRequestSchema, location="json")
+@marshal_with(VNPayPaymentResponseSchema, code=200)
+@student_required
+def create_vnpayment(**kwargs):
     """
-    Nhận dữ liệu từ client (order_id, amount, bank_code...)
-    và redirect sang trang thanh toán VNPAY
+    Tạo payment request với VNPay
+    - Yêu cầu student đã đăng ký khóa học (enrollment tồn tại với status pending_payment)
+    - Tạo URL thanh toán VNPay
     """
-    body = request.get_json(silent=True) or {}
+    try:
+        user_id = get_jwt_identity()
+        course_id = kwargs.get("course_id")
+        amount = kwargs.get("amount")
+        bank_code = kwargs.get("bank_code", "NCB")
+        
+        # Kiểm tra enrollment tồn tại và có status pending_payment
+        enrollment = enrollment_services.get_enrollment_by_user_and_course(user_id, course_id)
+        if not enrollment:
+            return {"message": "Bạn chưa đăng ký khóa học này"}, 400
+        
+        if enrollment.status != "pending_payment":
+            return {"message": "Khóa học này đã được thanh toán hoặc không cần thanh toán"}, 400
+        
+        # Kiểm tra khóa học tồn tại
+        course = get_course_by_id(course_id)
+        if not course:
+            return {"message": "Không tìm thấy khóa học"}, 404
+        
+        # Kiểm tra amount có khớp với giá khóa học không
+        if amount != course.price:
+            return {"message": f"Số tiền không đúng. Giá khóa học là {course.price} VND"}, 400
+        
+        # Lấy IP client
+        client_ip = request.remote_addr or "127.0.0.1"
+        
+        # Tạo URL thanh toán
+        payment_url, order_id = payment_services.create_vnpay_payment_url(
+            user_id, course_id, amount, bank_code, client_ip
+        )
+        
+        return {
+            "payment_url": payment_url,
+            "order_id": order_id,
+            "message": "Tạo URL thanh toán thành công"
+        }, 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {"message": "Lỗi hệ thống", "error": str(e)}, 500
 
-    order_id   = body.get("order_id", "order123")
-    amount_vnd = int(body.get("amount", 100_000))  # 100k VNĐ mặc định
-    bank_code  = body.get("bank_code", "NCB")
+@payment_bp.route("/vnpay/ipn", methods=["GET", "POST"])
+@doc(description="Webhook IPN từ VNPay", tags=["Payment"])
+@marshal_with(PaymentIPNSchema, code=200)
+def vnpay_ipn():
+    """
+    Webhook nhận thông báo từ VNPay
+    - Xác thực chữ ký
+    - Cập nhật enrollment status khi thanh toán thành công
+    """
+    try:
+        # VNPay có thể gửi IPN qua GET hoặc POST
+        if request.method == "GET":
+            params = dict(request.args)
+            print(f"VNPay IPN - Received GET request with params: {params}")
+        else:
+            params = dict(request.form) if request.form else dict(request.args)
+            print(f"VNPay IPN - Received POST request with params: {params}")
 
-    # Flask: lấy IP client
-    client_ip = request.remote_addr or "127.0.0.1"
+        if not params:
+            print("VNPay IPN - No parameters received")
+            return {"RspCode": "99", "Message": "No parameters"}, 400
 
-    # ------- 3.1 Lấy course -------
-    course_id = body.get("course_id")
-    if not course_id:
-        return {"msg": "course_id là bắt buộc"}, 400
+        # Xử lý IPN
+        response = payment_services.process_vnpay_ipn(params)
 
-    course = get_course_by_id(course_id)
-    if not course:
-        raise NotFound(description="Không tìm thấy khoá học")
+        print(f"VNPay IPN - Sending response: {response}")
+        return response, 200
 
-    params = {
-        "vnp_Version":  "2.1.0",
-        "vnp_Command":  "pay",
-        "vnp_TmnCode":  VNP_TMN_CODE,
-        "vnp_Amount":   str(amount_vnd * 100),          # nhân 100 theo quy định VNPAY
-        "vnp_CurrCode": "VND",
-        "vnp_TxnRef":   order_id,                      # mã giao dịch
-        "vnp_OrderInfo": f"Thanh toan khoa hoc #{order_id}",
-        "vnp_OrderType": "other",
-        "vnp_Locale":   "vn",
-        "vnp_BankCode": bank_code,
-        "vnp_CreateDate": datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S"),
-        "vnp_IpAddr":   client_ip,
-        "vnp_ReturnUrl": VNP_RETURN_URL,
-    }
+    except Exception as e:
+        print(f"VNPay IPN - Exception occurred: {str(e)}")
+        traceback.print_exc()
+        return {"RspCode": "99", "Message": "System error"}, 500
 
-    # ----- 1.1 Tạo chuỗi query đã sort -----
-    sorted_items   = sorted(params.items())                # sort key ASC
-    query_string   = urlencode(sorted_items)
+@payment_bp.route("/momo", methods=["POST"])
+@doc(description="Tạo payment request với MoMo", tags=["Payment"])
+@use_kwargs(PaymentRequestSchema, location="json")
+@marshal_with(MoMoPaymentResponseSchema, code=200)
+@student_required
+def create_momo_payment(**kwargs):
+    """
+    Tạo payment request với MoMo
+    - Yêu cầu student đã đăng ký khóa học (enrollment tồn tại với status pending_payment)
+    - Tạo payment request MoMo
+    """
+    try:
+        user_id = get_jwt_identity()
+        course_id = kwargs.get("course_id")
+        amount = kwargs.get("amount")
+        
+        # Kiểm tra enrollment tồn tại và có status pending_payment
+        enrollment = enrollment_services.get_enrollment_by_user_and_course(user_id, course_id)
+        if not enrollment:
+            return {"message": "Bạn chưa đăng ký khóa học này"}, 400
+        
+        if enrollment.status != "pending_payment":
+            return {"message": "Khóa học này đã được thanh toán hoặc không cần thanh toán"}, 400
+        
+        # Kiểm tra khóa học tồn tại
+        course = get_course_by_id(course_id)
+        if not course:
+            return {"message": "Không tìm thấy khóa học"}, 404
+        
+        # Kiểm tra amount có khớp với giá khóa học không
+        if amount != course.price:
+            return {"message": f"Số tiền không đúng. Giá khóa học là {course.price} VND"}, 400
+        
+        # Tạo payment request với MoMo
+        response = payment_services.create_momo_payment_request(user_id, course_id, amount)
+        
+        return response, 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {"message": "Lỗi hệ thống", "error": str(e)}, 500
 
-    # ----- 1.2 Tính chữ ký SHA‑512 -----
-    sign_data = "&".join(f"{k}={v}" for k, v in sorted_items)
-    secure_hash = hmac.new(
-        VNP_HASH_SECRET.encode(),
-        sign_data.encode(),
-        hashlib.sha512
-    ).hexdigest()
+@payment_bp.route("/momo/ipn", methods=["POST"])
+@doc(description="Webhook IPN từ MoMo", tags=["Payment"])
+@marshal_with(PaymentIPNSchema, code=200)
+def momo_ipn():
+    """
+    Webhook nhận thông báo từ MoMo
+    - Xác thực chữ ký
+    - Cập nhật enrollment status khi thanh toán thành công
+    """
+    try:
+        params = request.get_json() or {}
+        
+        # Xử lý IPN
+        response = payment_services.process_momo_ipn(params)
+        
+        return response, 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {"resultCode": 99, "message": "System error"}, 500
 
-    # ----- 1.3 Ghép URL cuối cùng -----
-    payment_url = f"{VNP_URL}?{query_string}&vnp_SecureHash={secure_hash}"
+    """Test endpoint để kiểm tra MoMo payment URL generation"""
+    try:
+        data = request.get_json() or {}
+        user_id = data.get("user_id", 1)
+        course_id = data.get("course_id", 1)
+        amount = data.get("amount", 100000)
 
-    current_app.logger.info("Redirect VNPAY URL: %s", payment_url)
-    return redirect(payment_url, code=302)
+        # Tạo payment request
+        response = payment_services.create_momo_payment_request(user_id, course_id, amount)
 
+        return {
+            **response,
+            "test_note": "This is a test endpoint. Use actual enrollment API in production."
+        }, 200
 
-# ---------- 2. Xử lý return_url ----------
-@payment_bp.route("/vnpay/return")
-@doc(description="Xóa bài học", tags=["Payment"])
-def vnpay_return():
-    """ Xác thực chữ ký khi VNPAY redirect về """
-    params = dict(request.args)
-    vnp_secure_hash = params.pop("vnp_SecureHash", None)
-    sorted_items = sorted(params.items())
-    sign_data    = "&".join(f"{k}={v}" for k, v in sorted_items)
+    except Exception as e:
+        traceback.print_exc()
+        return {"message": "Test failed", "error": str(e)}, 500
 
-    check_hash = hmac.new(
-        VNP_HASH_SECRET.encode(),
-        sign_data.encode(),
-        hashlib.sha512
-    ).hexdigest()
-
-    if check_hash != vnp_secure_hash:
-        return {"code": "97", "message": "Invalid signature"}, 400
-
-    # TODO: xử lý cập nhật đơn hàng tại đây
-    return {"code": "00", "message": "Payment success"}, 200
-
-
-# ---------- 3. Đăng ký với Flask‑Apispec ----------
+# Đăng ký docs
 def payment_register_docs(docs):
-    docs.register(create_vnpayment, blueprint="payment")
-    docs.register(vnpay_return,     blueprint="payment")
+    docs.register(create_vnpayment, blueprint='payment')
+    docs.register(vnpay_ipn, blueprint='payment')
+    docs.register(create_momo_payment, blueprint='payment')
+    docs.register(momo_ipn, blueprint='payment')

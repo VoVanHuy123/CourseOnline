@@ -76,6 +76,7 @@ class Enrollment(BaseModel):
     progress = Column(Float, default=0.0)
     status = Column(String(20))
     payment_status = Column(Boolean, default=False)
+    order_id = Column(String(100), nullable=True)
 
     user_id = Column(Integer, ForeignKey('user.id',ondelete="CASCADE"))
     course_id = Column(Integer, ForeignKey('course.id',ondelete="CASCADE"))
