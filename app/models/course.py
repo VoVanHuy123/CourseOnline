@@ -15,7 +15,7 @@ class Course(BaseModel):
     image = Column(String(255),nullable=True)
     teacher_id = Column(Integer, ForeignKey('user.id'))
     category_id = Column(Integer, ForeignKey('category.id'))
-    is_sequential = Column(Boolean, default=True)
+    is_sequential = Column(Boolean, default=False)
     is_public = Column(Boolean,default=False)
 
     chapters = relationship('Chapter', backref='course', lazy=True , cascade='all, delete-orphan')

@@ -5,8 +5,8 @@ from app.extensions import login_manager
 from app.services import course_services ,services
 from app.services.user_services import get_teacher
 from app.services import enrollment_services, payment_services
-from app.perms.perms import teacher_required,login_required,student_required
-from app.models.course import Type
+from app.perms.perms import teacher_required,login_required,student_required,owner_required
+from app.models.course import Type,Course
 from flask_jwt_extended import  get_jwt_identity
 # from flask_sqlalchemy import Pagination
 from marshmallow import fields
@@ -150,6 +150,7 @@ def create_course(**kwargs):
 @course_bp.route("/<int:course_id>", methods=["PATCH"])
 @doc(description="Cập nhật khóa học", tags=["Course"])
 @teacher_required
+@owner_required(model=Course,lookup_arg="course_id",user_field="teacher_id")
 def update_course(course_id):
     try:
         course = course_services.get_course_by_id(course_id)
@@ -158,15 +159,22 @@ def update_course(course_id):
 
         data = request.form  # Nếu có file thì dùng form-data
         image_file = request.files.get("image")
-
+        print("vaof")
         if "title" in data:
             course.title = data["title"]
         if "description" in data:
             course.description = data["description"]
         if "price" in data:
-            course.price = data["price"]
+            course.price = float(data["price"])
         if "category_id" in data:
-            course.category_id = data["category_id"]
+            course.category_id = int(data["category_id"])
+        if "is_sequential" in data:
+            course.is_sequential = data["is_sequential"].lower() == "true"
+        if "is_public" in data:
+            course.is_public = data["is_public"].lower() == "true"
+        if "null_image" in data:
+            course.image = data["null_image"]
+        
         if image_file:
             result = cloudinary.uploader.upload(image_file)
             course.image = result["secure_url"]

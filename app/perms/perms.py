@@ -103,7 +103,7 @@ def owner_required(model, user_field="user_id", lookup_arg="id"):# ví dụ upda
                 raise Forbidden("Không tìm thấy đối tượng")
 
             # So sánh quyền sở hữu
-            if getattr(obj, user_field) != user_id:
+            if getattr(obj, user_field) != int(user_id):
                 raise Forbidden("Bạn không có quyền truy cập tài nguyên này")
 
             return fn(*args, **kwargs)
