@@ -7,6 +7,7 @@ from .routes.course.course import course_bp,course_register_docs
 from .routes.review.review import review_bp,review_register_docs
 from .routes.comment.comment import comment_bp,comment_register_docs
 from .routes.payment.payment import payment_bp,payment_register_docs
+from .routes.initDb.init_db import init_bp,init_register_docs
 
 from .admin.admin import init_admin
 from .routes.learning.learning import learning_bp, learning_register_docs
@@ -52,6 +53,7 @@ def create_app(config_class='config.Config'):
     app.register_blueprint(comment_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(learning_bp)
+    app.register_blueprint(init_bp)
 
     # Flask-APISpec config
     app.config.update({
@@ -77,6 +79,7 @@ def create_app(config_class='config.Config'):
     comment_register_docs(docs)
     payment_register_docs(docs)
     learning_register_docs(docs)
+    init_register_docs(docs)
 
 
     return app
