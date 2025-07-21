@@ -4,10 +4,14 @@ import json
 import uuid
 import urllib.parse
 import requests
+import os
 from datetime import datetime
 from urllib.parse import urlencode
 from flask import current_app
+from dotenv import load_dotenv
 from app.services.enrollment_services import update_enrollment_payment_status, update_enrollment_payment_status_by_order_id
+
+load_dotenv()
 
 class Vnpay:
     """VNPay Official SDK Class"""
@@ -73,11 +77,11 @@ def create_vnpay_payment_url(user_id, course_id, amount, bank_code="NCB", client
     """Tạo URL thanh toán VNPay"""
     order_id = generate_order_id()
 
-    
-    vnp_tmn_code = "VZ4440R9"  
-    vnp_hash_secret = "H5Q37GV5CM5MDPJNI7AE5LDUTQS607QB"  
-    vnp_url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-    vnp_return_url = "http://localhost:3001/payment/return"
+    # Get configuration from environment variables
+    vnp_tmn_code = os.getenv("VNPAY_TMN_CODE")
+    vnp_hash_secret = os.getenv("VNPAY_HASH_SECRET")
+    vnp_url = os.getenv("VNPAY_PAYMENT_URL")
+    vnp_return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
 
     
     params = {
@@ -124,12 +128,12 @@ def create_vnpay_payment_url(user_id, course_id, amount, bank_code="NCB", client
 def create_vnpay_payment_url_with_order_id(user_id, course_id, amount, order_id, bank_code="NCB", client_ip="127.0.0.1"):
     """Tạo URL thanh toán VNPay với order_id có sẵn - Using Official VNPay SDK"""
 
-    
-    vnp_tmn_code = "VZ4440R9"
-    vnp_hash_secret = "H5Q37GV5CM5MDPJNI7AE5LDUTQS607QB"
-    vnp_url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-    vnp_return_url = "http://localhost:3001/payment/return"
-    vnp_api_url = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
+    # Get configuration from environment variables
+    vnp_tmn_code = os.getenv("VNPAY_TMN_CODE")
+    vnp_hash_secret = os.getenv("VNPAY_HASH_SECRET")
+    vnp_url = os.getenv("VNPAY_PAYMENT_URL")
+    vnp_return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
+    vnp_api_url = os.getenv("VNPAY_API_URL")
 
     
     vnpay = Vnpay(vnp_tmn_code, vnp_hash_secret, vnp_return_url, vnp_url, vnp_api_url)
@@ -221,12 +225,13 @@ def create_momo_payment_request(user_id, course_id, amount):
 
     order_id = generate_order_id()
 
-    partner_code = "MOMO"
-    access_key = "F8BBA842ECF85"
-    secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
-    endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
-    return_url = "http://localhost:3001/payment/momo/return"
-    ipn_url = "https://a934343ba41f.ngrok-free.app/payment/momo/ipn"
+    # Get configuration from environment variables
+    partner_code = os.getenv("MOMO_PARTNER_CODE")
+    access_key = os.getenv("MOMO_ACCESS_KEY")
+    secret_key = os.getenv("MOMO_SECRET_KEY")
+    endpoint = os.getenv("MOMO_ENDPOINT")
+    return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
+    ipn_url = os.getenv("BACK_END_URL") + "/payment/momo/ipn"
 
     request_data = {
         "partnerCode": partner_code,
@@ -293,13 +298,13 @@ def create_momo_payment_request_with_order_id(user_id, course_id, amount, order_
     """Tạo payment request với MoMo sử dụng order_id có sẵn"""
     import requests
 
-    
-    partner_code = "MOMO"
-    access_key = "F8BBA842ECF85"
-    secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
-    endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
-    return_url = "http://localhost:3001/payment/momo/return"
-    ipn_url = "https://a934343ba41f.ngrok-free.app/payment/momo/ipn"
+    # Get configuration from environment variables
+    partner_code = os.getenv("MOMO_PARTNER_CODE")
+    access_key = os.getenv("MOMO_ACCESS_KEY")
+    secret_key = os.getenv("MOMO_SECRET_KEY")
+    endpoint = os.getenv("MOMO_ENDPOINT")
+    return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
+    ipn_url = os.getenv("BACK_END_URL") + "/payment/momo/ipn"
 
     
     request_data = {

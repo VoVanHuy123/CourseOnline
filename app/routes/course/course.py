@@ -66,13 +66,53 @@ def list_teacher_courses_public(teacher_id, page, per_page):
 
 @course_bp.route("/<int:course_id>", methods=["GET"], provide_automatic_options=False)
 @doc(description="Lấy chi tiết khóa học theo ID", tags=["Course"])
-@marshal_with(CourseSchema, code=200)
 def get_course_detail(course_id):
-    """API lấy chi tiết khóa học theo ID"""
+    """API lấy chi tiết khóa học theo ID với thông tin enrollment status"""
     course = course_services.get_course_by_id(course_id)
     if not course:
         return {"message": "Khóa học không tồn tại"}, 404
-    return course
+
+    # Serialize course data
+    course_data = CourseSchema().dump(course)
+
+    # Thêm thông tin enrollment status nếu user đã đăng nhập
+    try:
+        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+
+        if user_id:
+            enrollment = enrollment_services.get_enrollment_by_user_and_course(user_id, course_id)
+            if enrollment:
+                course_data['enrollment_status'] = {
+                    'is_enrolled': True,
+                    'payment_status': enrollment.payment_status,
+                    'progress': enrollment.progress,
+                    'status': enrollment.status.value if enrollment.status else 'unfinished'
+                }
+            else:
+                course_data['enrollment_status'] = {
+                    'is_enrolled': False,
+                    'payment_status': False,
+                    'progress': 0.0,
+                    'status': None
+                }
+        else:
+            course_data['enrollment_status'] = {
+                'is_enrolled': False,
+                'payment_status': False,
+                'progress': 0.0,
+                'status': None
+            }
+    except Exception as e:
+        course_data['enrollment_status'] = {
+            'is_enrolled': False,
+            'payment_status': False,
+            'progress': 0.0,
+            'status': None
+        }
+
+    return course_data, 200
 
 @course_bp.route("/teacher/<int:teacher_id>", methods=["GET"])
 @doc(description="Lấy danh sách khóa học theo giáo viên", tags=["Course"])
@@ -462,6 +502,8 @@ def get_total_students():
         teacher_id = get_jwt_identity()
         total = course_services.get_total_students_by_teacher(teacher_id)
         return {"msg": "Thống kê học viên thành công", "total_students": total}, 200
+    except Exception as e:
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 @course_bp.route("/categories", methods=["GET"])
 @doc(description="Danh sách Category", tags=["Course"])
@@ -570,8 +612,8 @@ def enroll_course(course_id, **kwargs):
         if error:
             return {"msg": error}, 400
 
-        # Kiểm tra xem đây có phải là re-payment không
-        is_repayment = hasattr(enrollment, '_is_existing') or enrollment.status == "pending_payment"
+        # Kiểm tra xem đây có phải là re-payment không (dựa trên payment_status)
+        is_repayment = hasattr(enrollment, '_is_existing') or enrollment.payment_status == False
 
         # Tạo payment URL theo phương thức được chọn
         payment_info = {}
@@ -626,7 +668,7 @@ def enroll_course(course_id, **kwargs):
             "course_id": enrollment.course_id,
             "user_id": enrollment.user_id,
             "progress": enrollment.progress,
-            "status": enrollment.status,  # pending_payment -> active (sau khi thanh toán)
+            "status": enrollment.status,  # unfinished -> completed (based on learning progress)
             "order_id": enrollment.order_id,
             "payment_status": "pending" if not enrollment.payment_status else "paid",
             "message": f"{'Thanh toán lại' if is_repayment else 'Đăng ký khóa học thành công'}. Thanh toán qua {payment_method.upper()}:",
