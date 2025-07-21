@@ -21,6 +21,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @use_kwargs(UserLoginSchema, location="json")
 def login(username, password):
     user = User.query.filter_by(username=username).first()
+    print(user)
     if not user :
         return {"msg": "Sai username","field":"username"}, 401
     if not user.check_password(password):
