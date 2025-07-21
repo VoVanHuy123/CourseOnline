@@ -49,3 +49,9 @@ class TeacherRegisterSchema(Schema):
     role = fields.Str(required=True)  # teacher
     current_workplace = fields.Str(required=True)
     degree = fields.Str(required=True)
+class AdminRegisterSchema(Schema):
+    username = fields.Str(required=True)
+    password = fields.Str(required=True,load_only=True)
+    first_name = fields.Str()
+    last_name = fields.Str()
+    role = fields.Str(required=True)  
