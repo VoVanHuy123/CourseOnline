@@ -40,3 +40,31 @@ def add_lesson_progress(lesson_progress):
 
 def commit():
     db.session.commit()
+
+def get_course_progress(course_id, user_id):
+    try:
+        # Lấy enrollment
+        enrollment = get_enrollment(user_id, course_id)
+        if not enrollment:
+            return None, "Bạn chưa đăng ký khóa học này"
+        
+        # Lấy course
+        course = Course.query.get(course_id)
+        if not course:
+            return None, "Không tìm thấy khóa học"
+        
+        # Lấy tất cả lesson progress của user trong course này
+        lesson_progresses = db.session.query(LessonProgress).join(Lesson).join(Chapter).filter(
+            LessonProgress.user_id == user_id,
+            Chapter.course_id == course_id
+        ).all()
+        
+        return {
+            "enrollment": enrollment,
+            "course": course,
+            "lesson_progresses": lesson_progresses
+        }, None
+        
+    except Exception as e:
+        return None, str(e)
+
