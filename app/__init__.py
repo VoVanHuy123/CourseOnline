@@ -28,6 +28,16 @@ def create_app(config_class='config.Config'):
     init_admin(app)
     Config.init_cloudinary()
 
+    with app.app_context():
+        try:
+            engine = db.get_engine()
+            connection = engine.connect()
+            print("✅ Đã kết nối tới DB:", engine.url)
+            connection.close()
+        except Exception as e:
+            print("❌ Lỗi khi kết nối DB:", e)
+
+
     # Cho phép frontend React truy cập Flask
     # CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
     CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
