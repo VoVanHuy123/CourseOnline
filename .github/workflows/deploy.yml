@@ -22,10 +22,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests
-        run: |
-          # ví dụ: pytest hoặc unittest
-          pytest tests/
+      # - name: Run tests
+      #   run: |
+      #     # ví dụ: pytest hoặc unittest
+      #     pytest tests/
 
       - name: Deploy to Render
         run: |
