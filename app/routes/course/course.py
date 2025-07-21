@@ -1,10 +1,11 @@
 from flask import Blueprint, jsonify, request
 from flask_apispec import use_kwargs, marshal_with, doc
-from app.schemas.course import CourseSchema,ChapterSchema,LessonSchema,CourseCreateResponseSchema,ChapterCreateResponseSchema,LessonInChapterDumpSchema,CategorySchema,ListChapterSchema
+from app.schemas.course import CourseSchema,ChapterSchema,LessonSchema,CourseCreateResponseSchema,ChapterCreateResponseSchema,LessonInChapterDumpSchema,CategorySchema,ListChapterSchema,EnrollmentResponseSchema,EnrollmentRequestSchema
 from app.extensions import login_manager
 from app.services import course_services ,services
 from app.services.user_services import get_teacher
-from app.perms.perms import teacher_required,login_required,owner_required
+from app.services import enrollment_services, payment_services
+from app.perms.perms import teacher_required,login_required,student_required,owner_required
 from app.models.course import Type,Course
 from flask_jwt_extended import  get_jwt_identity
 # from flask_sqlalchemy import Pagination
@@ -204,10 +205,9 @@ def delete_course(course_id):
 
 
 @course_bp.route("/<int:course_id>/chapters",methods = ['GET'])
-@doc(description="Tạo Chương mới",tags = ["Course"])
+@doc(description="Lấy danh sách chương của khóa học",tags = ["Course"])
 # @use_kwargs(ChapterSchema(many=True), location="json")
 @marshal_with(ListChapterSchema(many=True),200)
-@teacher_required
 def get_course_chapters(course_id):
     # course_id = kwargs.get("course_id")
     # chapters = course_services.get_chapter_by_course_id(course_id)
@@ -466,6 +466,119 @@ def list_categorie():
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
+# API Enrollment
+@course_bp.route("/<int:course_id>/enroll", methods=["POST"])
+@doc(description="Đăng ký khóa học với phương thức thanh toán", tags=["Course"])
+@use_kwargs(EnrollmentRequestSchema, location="json")
+@marshal_with(EnrollmentResponseSchema, code=201)
+@student_required
+def enroll_course(course_id, **kwargs):
+    """
+    API đăng ký khóa học cho student
+    - Yêu cầu authentication: Student phải đăng nhập (JWT token required)
+    - Input: course_id từ URL parameter, payment_method từ request body
+    - Body: {"payment_method": "vnpay" hoặc "momo"}
+    - Validation: Kiểm tra khóa học tồn tại, student chưa đăng ký trước đó
+    - Response: Tạo enrollment record và trả về payment URL theo phương thức được chọn
+    """
+    try:
+        user_id = get_jwt_identity()
+
+        # Lấy payment_method từ kwargs (đã được validate bởi schema)
+        payment_method = kwargs.get("payment_method", "").lower()
+
+        # Lấy thông tin course trước
+        course = course_services.get_course_by_id(course_id)
+        if not course:
+            return {"msg": "Không tìm thấy khóa học"}, 404
+
+        # Lấy IP client
+        client_ip = request.remote_addr or "127.0.0.1"
+
+        # Tạo order_id trước để lưu vào enrollment
+        primary_order_id = payment_services.generate_order_id()
+
+        # Tạo enrollment với order_id (cho phép thanh toán lại nếu chưa thanh toán)
+        enrollment, error = enrollment_services.create_enrollment(user_id, course_id, primary_order_id)
+
+        if error:
+            return {"msg": error}, 400
+
+        # Kiểm tra xem đây có phải là re-payment không
+        is_repayment = hasattr(enrollment, '_is_existing') or enrollment.status == "pending_payment"
+
+        # Tạo payment URL theo phương thức được chọn
+        payment_info = {}
+
+        if payment_method == "vnpay":
+            try:
+                # Tạo VNPay payment URL
+                vnpay_url, _ = payment_services.create_vnpay_payment_url_with_order_id(
+                    user_id, course_id, course.price, primary_order_id, "NCB", client_ip
+                )
+                payment_info = {
+                    "payment_url": vnpay_url,
+                    "order_id": primary_order_id,
+                    "method": "VNPay",
+                    "success": True
+                }
+            except Exception as e:
+                print(f"VNPay URL generation failed: {str(e)}")
+                payment_info = {
+                    "payment_url": None,
+                    "order_id": primary_order_id,
+                    "method": "VNPay",
+                    "success": False,
+                    "error": str(e)
+                }
+
+        elif payment_method == "momo":
+            try:
+                # Tạo MoMo payment URL
+                momo_response = payment_services.create_momo_payment_request_with_order_id(
+                    user_id, course_id, course.price, primary_order_id
+                )
+                payment_info = {
+                    "payment_url": momo_response.get("payUrl"),
+                    "order_id": primary_order_id,
+                    "method": "MoMo",
+                    "success": momo_response.get("payUrl") is not None,
+                    "message": momo_response.get("message")
+                }
+            except Exception as e:
+                print(f"MoMo URL generation failed: {str(e)}")
+                payment_info = {
+                    "payment_url": None,
+                    "order_id": primary_order_id,
+                    "method": "MoMo",
+                    "success": False,
+                    "error": str(e)
+                }
+
+        response_data = {
+            "id": enrollment.id,
+            "course_id": enrollment.course_id,
+            "user_id": enrollment.user_id,
+            "progress": enrollment.progress,
+            "status": enrollment.status,  # pending_payment -> active (sau khi thanh toán)
+            "order_id": enrollment.order_id,
+            "payment_status": "pending" if not enrollment.payment_status else "paid",
+            "message": f"{'Thanh toán lại' if is_repayment else 'Đăng ký khóa học thành công'}. Thanh toán qua {payment_method.upper()}:",
+            "course": {
+                "id": course.id,
+                "title": course.title,
+                "price": course.price,
+                "description": course.description
+            },
+            "payment_info": payment_info  # Thông tin thanh toán theo phương thức được chọn
+        }
+
+        return response_data, 201
+
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
 
 # thêm vào swagger-ui
 #đăng kí các hàm ở đây để hiện lên swagger
@@ -490,3 +603,4 @@ def course_register_docs(docs):
     docs.register(delete_chapter, blueprint='course')
     docs.register(delete_lesson, blueprint='course')
     docs.register(list_categorie, blueprint='course')
+    docs.register(enroll_course, blueprint='course')
