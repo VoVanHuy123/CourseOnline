@@ -14,7 +14,7 @@ class Config:
 
     def init_cloudinary():
         cloudinary.config(
-            cloud_name="dnzjjdg0v",
-            api_key="123958894742992",
-            api_secret="kQugdU7BMnVH5E4OYtFLvGKrHfk",
+            cloud_name="phuonghuy",
+            api_key="425464989232846",
+            api_secret="4zTj_ijrwr4G-ATwHb1AnISHouY",
         )
