@@ -14,7 +14,7 @@ class Config:
 
     def init_cloudinary():
         cloudinary.config(
-            cloud_name=os.getenv("delrpa4vp"),
-            api_key=os.getenv("812578969381167"),
-            api_secret=os.getenv("API_SsYRSJNHOTFBM_P-CAwztGS99K2YECRET"),
+            cloud_name=os.getenv("CLOUD_NAME"),
+            api_key=os.getenv("API_KEY"),
+            api_secret=os.getenv("API_SECRET"),
         )
