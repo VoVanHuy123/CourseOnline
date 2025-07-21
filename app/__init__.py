@@ -6,7 +6,7 @@ from .routes.auth.auth import auth_bp,user_register_docs
 from .routes.course.course import course_bp,course_register_docs
 from .routes.review.review import review_bp,review_register_docs
 from .routes.comment.comment import comment_bp,comment_register_docs
-from.routes.payment.payment import payment_bp,payment_register_docs
+from .routes.payment.payment import payment_bp,payment_register_docs
 
 from .admin.admin import init_admin
 from .routes.learning.learning import learning_bp, learning_register_docs

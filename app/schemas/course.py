@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 from app.models.course import Type
 
 class CourseCreateResponseSchema(Schema):
@@ -78,9 +78,36 @@ class LessonProgressSchema(Schema):
     is_completed = fields.Boolean(required=True)
 
 class EnrollmentSchema(Schema):
+    id = fields.Int(dump_only=True)
     course_id = fields.Int(required=True)
-    progress = fields.Float(required=True)
-    status = fields.Str(required=True)
+    user_id = fields.Int(dump_only=True)
+    progress = fields.Float(dump_only=True)
+    status = fields.Str(dump_only=True)
+    payment_status = fields.Bool(dump_only=True)
+    created_day = fields.DateTime(dump_only=True)
+
+class EnrollmentRequestSchema(Schema):
+    payment_method = fields.Str(required=True, validate=validate.OneOf(["vnpay", "momo"]))
+
+class PaymentInfoSchema(Schema):
+    payment_url = fields.Str(allow_none=True)
+    order_id = fields.Str(allow_none=True)
+    method = fields.Str()
+    success = fields.Bool()
+    message = fields.Str(missing="")
+    error = fields.Str(missing="")
+
+class EnrollmentResponseSchema(Schema):
+    id = fields.Int()
+    course_id = fields.Int()
+    user_id = fields.Int()
+    progress = fields.Float()
+    status = fields.Str()
+    order_id = fields.Str()
+    payment_status = fields.Str()
+    message = fields.Str()
+    course = fields.Nested(CourseSchema, dump_only=True)
+    payment_info = fields.Nested(PaymentInfoSchema, dump_only=True)  # Thông tin thanh toán theo phương thức được chọn
 
 class CategorySchema(Schema):
     id = fields.Int(required=True)
