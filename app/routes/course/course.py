@@ -207,7 +207,6 @@ def delete_course(course_id):
 @doc(description="Tạo Chương mới",tags = ["Course"])
 # @use_kwargs(ChapterSchema(many=True), location="json")
 @marshal_with(ListChapterSchema(many=True),200)
-@teacher_required
 def get_course_chapters(course_id):
     # course_id = kwargs.get("course_id")
     # chapters = course_services.get_chapter_by_course_id(course_id)

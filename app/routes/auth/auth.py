@@ -1,9 +1,9 @@
 from flask import Blueprint, jsonify, request
 from flask_apispec import use_kwargs, marshal_with, doc
 from flask_jwt_extended import create_access_token
-from app.schemas.user import UserLoginSchema,UserSchema,TeacherRegisterSchema,StudentRegisterSchema
+from app.schemas.user import UserLoginSchema,UserSchema,TeacherRegisterSchema,StudentRegisterSchema,AdminRegisterSchema
 from app.extensions import login_manager,db
-from app.models.user import User,Student,Teacher
+from app.models.user import User,Student,Teacher,Admin
 from werkzeug.security import generate_password_hash
 from marshmallow import  ValidationError
 from flask_jwt_extended import jwt_required,get_jwt_identity
@@ -54,7 +54,7 @@ def register():
                 student_code=validated_data.get("student_code"),
                 university=validated_data.get("university"),
                 gender=validated_data.get("gender"),
-                role=UserRole.STUDENT,
+                role=UserRole.STUDENT.value,
                 is_validate=True
             )
 
@@ -70,8 +70,19 @@ def register():
                 phonenumber=validated_data.get("phonenumber"),
                 current_workplace=validated_data.get("current_workplace"),
                 degree=validated_data.get("degree"),
-                role=UserRole.TEACHER,
+                role=UserRole.TEACHER.value,
                 is_validate=False
+            )
+        elif role == "admin":
+            schema = AdminRegisterSchema()
+            validated_data = schema.load(data)
+            user = Admin(
+                username=validated_data["username"],
+                password=generate_password_hash(validated_data["password"]),
+                first_name=validated_data.get("first_name"),
+                last_name=validated_data.get("last_name"),
+                role=UserRole.ADMIN.value,
+                is_validate=True
             )
         else:
             return {"msg": "Vai trò không hợp lệ"}, 400  

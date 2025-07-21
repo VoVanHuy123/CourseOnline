@@ -64,3 +64,9 @@ class Student(User):
     enrollments = relationship('Enrollment', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)
     lesson_progress = relationship('LessonProgress', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)
     reviews = relationship('CourseReview', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)
+class Admin(User):
+    __tablename__ = 'admin'
+    __mapper_args__ = {
+        'polymorphic_identity': UserRole.ADMIN
+    }
+    id = Column(Integer, ForeignKey('user.id'), primary_key=True)
