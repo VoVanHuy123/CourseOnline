@@ -62,7 +62,7 @@ class LessonComment(BaseModel):
 
     user_id = Column(Integer, ForeignKey('user.id',ondelete="CASCADE"))
     lesson_id = Column(Integer, ForeignKey('lesson.id',ondelete="CASCADE"))
-
+    
     replies = relationship('LessonComment', backref=backref('parent', remote_side=[id]), lazy=True,cascade='all, delete-orphan', single_parent=True )
 
 # comment.replies: lấy danh sách các phản hồi (con) của comment này.
