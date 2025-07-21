@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields,post_dump
 from enum import Enum
 from app.models.user import Gender
 class UserRole(str, Enum):
@@ -14,7 +14,15 @@ class UserSchema(Schema):
     last_name = fields.Str(required=True)
     email = fields.Email()
     phonenumber = fields.Str()
-    role = fields.Str(validate=lambda x: x in UserRole)
+    # role = fields.Str(validate=lambda x: x in UserRole)
+    role = fields.Str()  # Không cần validate lại Enum ở đây
+
+    @post_dump
+    def convert_enum_to_value(self, data, **kwargs):
+        if isinstance(data.get("role"), str) and data["role"].startswith("UserRole."):
+            # Tách nếu bị serialize sai
+            data["role"] = data["role"].split(".")[1].lower()
+        return data
 
 class UserLoginSchema(Schema):
     username = fields.Str(required=True, metadata={"description": "Tên đăng nhập"})
@@ -41,3 +49,9 @@ class TeacherRegisterSchema(Schema):
     role = fields.Str(required=True)  # teacher
     current_workplace = fields.Str(required=True)
     degree = fields.Str(required=True)
+class AdminRegisterSchema(Schema):
+    username = fields.Str(required=True)
+    password = fields.Str(required=True,load_only=True)
+    first_name = fields.Str()
+    last_name = fields.Str()
+    role = fields.Str(required=True)  
