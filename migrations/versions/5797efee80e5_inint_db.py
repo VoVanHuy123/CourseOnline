@@ -1,8 +1,8 @@
-"""create tables
+"""inint db
 
-Revision ID: 835441d1274c
+Revision ID: 5797efee80e5
 Revises: 
-Create Date: 2025-07-05 09:30:12.496398
+Create Date: 2025-07-21 10:14:29.539224
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '835441d1274c'
+revision = '5797efee80e5'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -29,12 +29,13 @@ def upgrade():
     op.create_table('user',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(length=50), nullable=False),
-    sa.Column('password', sa.String(length=128), nullable=False),
+    sa.Column('password', sa.String(length=256), nullable=False),
     sa.Column('first_name', sa.String(length=50), nullable=False),
     sa.Column('last_name', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=50), nullable=True),
     sa.Column('phonenumber', sa.String(length=15), nullable=True),
     sa.Column('role', sa.Enum('ADMIN', 'STUDENT', 'TEACHER', name='userrole', native_enum=False), nullable=False),
+    sa.Column('avatar', sa.String(length=225), nullable=True),
     sa.Column('is_validate', sa.Boolean(), nullable=True),
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
@@ -44,14 +45,21 @@ def upgrade():
     sa.UniqueConstraint('phonenumber'),
     sa.UniqueConstraint('username')
     )
+    op.create_table('admin',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['id'], ['user.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('course',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=100), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('price', sa.Float(), nullable=False),
+    sa.Column('image', sa.String(length=255), nullable=True),
     sa.Column('teacher_id', sa.Integer(), nullable=True),
     sa.Column('category_id', sa.Integer(), nullable=True),
     sa.Column('is_sequential', sa.Boolean(), nullable=True),
+    sa.Column('is_public', sa.Boolean(), nullable=True),
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
@@ -63,7 +71,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('student_code', sa.String(length=25), nullable=False),
     sa.Column('university', sa.String(length=50), nullable=False),
-    sa.Column('gender', sa.Enum('MALE', 'FEMALE', 'ORTHER', name='gender', native_enum=False), nullable=False),
+    sa.Column('gender', sa.Enum('male', 'female', 'orther', name='gender', native_enum=False), nullable=False),
     sa.ForeignKeyConstraint(['id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -78,11 +86,12 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=100), nullable=True),
     sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('order', sa.Integer(), nullable=True),
     sa.Column('course_id', sa.Integer(), nullable=True),
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['course_id'], ['course.id'], ),
+    sa.ForeignKeyConstraint(['course_id'], ['course.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('course_review',
@@ -94,8 +103,8 @@ def upgrade():
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['course_id'], ['course.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['course_id'], ['course.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('enrollment',
@@ -103,21 +112,23 @@ def upgrade():
     sa.Column('progress', sa.Float(), nullable=True),
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('payment_status', sa.Boolean(), nullable=True),
+    sa.Column('order_id', sa.String(length=100), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('course_id', sa.Integer(), nullable=True),
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['course_id'], ['course.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['course_id'], ['course.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('lesson',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=100), nullable=True),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('type', sa.Enum('TEXT', 'VIDEO', 'FILE', name='type'), nullable=True),
+    sa.Column('type', sa.Enum('TEXT', 'VIDEO', 'FILE', 'IMAGE', name='type'), nullable=True),
     sa.Column('content_url', sa.String(length=255), nullable=True),
+    sa.Column('image', sa.String(length=255), nullable=True),
     sa.Column('is_published', sa.Boolean(), nullable=True),
     sa.Column('order', sa.Integer(), nullable=True),
     sa.Column('is_locked', sa.Boolean(), nullable=True),
@@ -125,7 +136,7 @@ def upgrade():
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['chapter_id'], ['chapter.id'], ),
+    sa.ForeignKeyConstraint(['chapter_id'], ['chapter.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('lesson_comment',
@@ -134,13 +145,12 @@ def upgrade():
     sa.Column('reply_to', sa.Integer(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('lesson_id', sa.Integer(), nullable=True),
-    sa.Column('is_locked', sa.Boolean(), nullable=True),
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['lesson_id'], ['lesson.id'], ),
+    sa.ForeignKeyConstraint(['lesson_id'], ['lesson.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['reply_to'], ['lesson_comment.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('lesson_progress',
@@ -151,8 +161,8 @@ def upgrade():
     sa.Column('created_day', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['lesson_id'], ['lesson.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['lesson_id'], ['lesson.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###
@@ -169,6 +179,7 @@ def downgrade():
     op.drop_table('teacher')
     op.drop_table('student')
     op.drop_table('course')
+    op.drop_table('admin')
     op.drop_table('user')
     op.drop_table('category')
     # ### end Alembic commands ###

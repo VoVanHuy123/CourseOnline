@@ -21,7 +21,7 @@ class User(BaseModel,UserMixin):
     last_name = Column(String(50),nullable=False)
     email = Column(String(50),nullable=True,unique=True)
     phonenumber = Column(String(15),nullable=True,unique=True)
-    role = Column(Enum(UserRole, native_enum=False), nullable=False)
+    role = Column(Enum(UserRole, native_enum=False,values_callable=lambda x: [e.value for e in x]), nullable=False)
     avatar = Column(String(225),nullable=True)
     is_validate = Column(Boolean,default=False)
     __mapper_args__ = {
@@ -64,3 +64,9 @@ class Student(User):
     enrollments = relationship('Enrollment', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)
     lesson_progress = relationship('LessonProgress', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)
     reviews = relationship('CourseReview', backref='student', lazy=True, cascade='all, delete-orphan',passive_deletes=True)
+class Admin(User):
+    __tablename__ = 'admin'
+    __mapper_args__ = {
+        'polymorphic_identity': UserRole.ADMIN
+    }
+    id = Column(Integer, ForeignKey('user.id'), primary_key=True)
