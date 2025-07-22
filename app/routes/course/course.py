@@ -454,15 +454,6 @@ def delete_lesson(lesson_id):
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
     
 
-@course_bp.route("/stats/total-students", methods=["GET"],provide_automatic_options=False)
-@doc(description="Thống kê tổng số học viên của giáo viên", tags=["Course Stats"])
-@teacher_required
-def get_total_students():
-    try:
-        teacher_id = get_jwt_identity()
-        total = course_services.get_total_students_by_teacher(teacher_id)
-        return {"msg": "Thống kê học viên thành công", "total_students": total}, 200
-
 @course_bp.route("/categories", methods=["GET"])
 @doc(description="Danh sách Category", tags=["Course"])
 @marshal_with(CategorySchema(many=True),200)
@@ -475,61 +466,6 @@ def list_categorie():
 
     except Exception as e:
         traceback.print_exc()
-        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
-
-@course_bp.route("/stats/chapters-lessons", methods=["GET"],provide_automatic_options=False)
-@doc(description="Thống kê tổng số chương và bài học", tags=["Course Stats"])
-@teacher_required
-def get_chapter_lesson_counts():
-    try:
-        teacher_id = get_jwt_identity()
-        result = course_services.get_chapter_lesson_count_by_teacher(teacher_id)
-        return {"msg": "Thống kê thành công", "data": result}, 200
-    except Exception as e:
-        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
-
-@course_bp.route("/stats/avg-lessons-per-chapter", methods=["GET"],provide_automatic_options=False)
-@doc(description="Thống kê trung bình số bài học mỗi chương", tags=["Course Stats"])
-@teacher_required
-def get_avg_lessons():
-    try:
-        teacher_id = get_jwt_identity()
-        avg = course_services.get_avg_lessons_per_chapter(teacher_id)
-        return {"msg": "Thống kê thành công", "average_lessons": avg}, 200
-    except Exception as e:
-        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
-
-@course_bp.route("/stats/published-lesson-rate", methods=["GET"],provide_automatic_options=False)
-@doc(description="Thống kê tỷ lệ bài học đã xuất bản", tags=["Course Stats"])
-@teacher_required
-def get_publish_rate():
-    try:
-        teacher_id = get_jwt_identity()
-        data = course_services.get_published_lesson_rate(teacher_id)
-        return {"msg": "Thống kê thành công", "data": data}, 200
-    except Exception as e:
-        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
-
-@course_bp.route("/stats/avg-rating", methods=["GET"],provide_automatic_options=False)
-@doc(description="Thống kê trung bình đánh giá của giáo viên", tags=["Course Stats"])
-@teacher_required
-def get_avg_rating():
-    try:
-        teacher_id = get_jwt_identity()
-        avg_rating = course_services.get_average_teacher_rating(teacher_id)
-        return {"msg": "Thống kê thành công", "avg_rating": avg_rating}, 200
-    except Exception as e:
-        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
-
-@course_bp.route("/stats/students-completed-lessons", methods=["GET"],provide_automatic_options=False)
-@doc(description="Thống kê số học viên đã hoàn thành ít nhất một bài học", tags=["Course Stats"])
-@teacher_required
-def get_students_completed_lessons():
-    try:
-        teacher_id = get_jwt_identity()
-        total = course_services.get_students_with_completed_lessons(teacher_id)
-        return {"msg": "Thống kê thành công", "students_completed": total}, 200
-    except Exception as e:
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 # API Enrollment
@@ -668,12 +604,12 @@ def course_register_docs(docs):
     docs.register(delete_course, blueprint='course')
     docs.register(delete_chapter, blueprint='course')
     docs.register(delete_lesson, blueprint='course')
-    docs.register(get_total_students, blueprint='course')
-    docs.register(get_chapter_lesson_counts, blueprint='course')
-    docs.register(get_avg_lessons, blueprint='course')
-    docs.register(get_publish_rate, blueprint='course')
-    docs.register(get_avg_rating, blueprint='course')
-    docs.register(get_students_completed_lessons, blueprint='course')
+    # docs.register(get_total_students, blueprint='course')
+    # docs.register(get_chapter_lesson_counts, blueprint='course')
+    # docs.register(get_avg_lessons, blueprint='course')
+    # docs.register(get_publish_rate, blueprint='course')
+    # docs.register(get_avg_rating, blueprint='course')
+    # docs.register(get_students_completed_lessons, blueprint='course')
 
     docs.register(list_categorie, blueprint='course')
     docs.register(enroll_course, blueprint='course')
