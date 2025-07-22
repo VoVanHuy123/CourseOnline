@@ -23,7 +23,7 @@ payment_bp = Blueprint("payment", __name__, url_prefix="/payment")
 def create_vnpayment(**kwargs):
     """
     Tạo payment request với VNPay
-    - Yêu cầu student đã đăng ký khóa học (enrollment tồn tại với status pending_payment)
+    - Yêu cầu student đã đăng ký khóa học (enrollment tồn tại và chưa thanh toán)
     - Tạo URL thanh toán VNPay
     """
     try:
@@ -32,13 +32,13 @@ def create_vnpayment(**kwargs):
         amount = kwargs.get("amount")
         bank_code = kwargs.get("bank_code", "NCB")
         
-        # Kiểm tra enrollment tồn tại và có status pending_payment
+        # Kiểm tra enrollment tồn tại và chưa thanh toán
         enrollment = enrollment_services.get_enrollment_by_user_and_course(user_id, course_id)
         if not enrollment:
             return {"message": "Bạn chưa đăng ký khóa học này"}, 400
-        
-        if enrollment.status != "pending_payment":
-            return {"message": "Khóa học này đã được thanh toán hoặc không cần thanh toán"}, 400
+
+        if enrollment.payment_status == True:
+            return {"message": "Khóa học này đã được thanh toán"}, 400
         
         # Kiểm tra khóa học tồn tại
         course = get_course_by_id(course_id)
@@ -108,7 +108,7 @@ def vnpay_ipn():
 def create_momo_payment(**kwargs):
     """
     Tạo payment request với MoMo
-    - Yêu cầu student đã đăng ký khóa học (enrollment tồn tại với status pending_payment)
+    - Yêu cầu student đã đăng ký khóa học (enrollment tồn tại và chưa thanh toán)
     - Tạo payment request MoMo
     """
     try:
@@ -116,13 +116,13 @@ def create_momo_payment(**kwargs):
         course_id = kwargs.get("course_id")
         amount = kwargs.get("amount")
         
-        # Kiểm tra enrollment tồn tại và có status pending_payment
+        # Kiểm tra enrollment tồn tại và chưa thanh toán
         enrollment = enrollment_services.get_enrollment_by_user_and_course(user_id, course_id)
         if not enrollment:
             return {"message": "Bạn chưa đăng ký khóa học này"}, 400
-        
-        if enrollment.status != "pending_payment":
-            return {"message": "Khóa học này đã được thanh toán hoặc không cần thanh toán"}, 400
+
+        if enrollment.payment_status == True:
+            return {"message": "Khóa học này đã được thanh toán"}, 400
         
         # Kiểm tra khóa học tồn tại
         course = get_course_by_id(course_id)
