@@ -74,7 +74,7 @@ class Status(enum.Enum):
 class Enrollment(BaseModel):
     id = Column(Integer, primary_key=True)
     progress = Column(Float, default=0.0)
-    status = Column(String(20))
+    status = Column(Enum(Status, native_enum=False, values_callable=lambda x: [e.value for e in x]), default=Status.UNFINISHED)
     payment_status = Column(Boolean, default=False)
     order_id = Column(String(100), nullable=True)
 
