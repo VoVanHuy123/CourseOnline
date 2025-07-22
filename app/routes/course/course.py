@@ -13,7 +13,7 @@ from marshmallow import fields
 from app.extensions import db
 import traceback,os
 import cloudinary.uploader
-
+# from flask_jwt_extended import jwt_required
 course_bp = Blueprint("course",__name__,url_prefix="/courses")
 
 @course_bp.route("/", methods=["GET"])
@@ -66,13 +66,53 @@ def list_teacher_courses_public(teacher_id, page, per_page):
 
 @course_bp.route("/<int:course_id>", methods=["GET"], provide_automatic_options=False)
 @doc(description="Lấy chi tiết khóa học theo ID", tags=["Course"])
-@marshal_with(CourseSchema, code=200)
 def get_course_detail(course_id):
-    """API lấy chi tiết khóa học theo ID"""
+    """API lấy chi tiết khóa học theo ID với thông tin enrollment status"""
     course = course_services.get_course_by_id(course_id)
     if not course:
         return {"message": "Khóa học không tồn tại"}, 404
-    return course
+
+    # Serialize course data
+    course_data = CourseSchema().dump(course)
+
+    # Thêm thông tin enrollment status nếu user đã đăng nhập
+    try:
+        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+
+        if user_id:
+            enrollment = enrollment_services.get_enrollment_by_user_and_course(user_id, course_id)
+            if enrollment:
+                course_data['enrollment_status'] = {
+                    'is_enrolled': True,
+                    'payment_status': enrollment.payment_status,
+                    'progress': enrollment.progress,
+                    'status': enrollment.status.value if enrollment.status else 'unfinished'
+                }
+            else:
+                course_data['enrollment_status'] = {
+                    'is_enrolled': False,
+                    'payment_status': False,
+                    'progress': 0.0,
+                    'status': None
+                }
+        else:
+            course_data['enrollment_status'] = {
+                'is_enrolled': False,
+                'payment_status': False,
+                'progress': 0.0,
+                'status': None
+            }
+    except Exception as e:
+        course_data['enrollment_status'] = {
+            'is_enrolled': False,
+            'payment_status': False,
+            'progress': 0.0,
+            'status': None
+        }
+
+    return course_data, 200
 
 @course_bp.route("/teacher/<int:teacher_id>", methods=["GET"])
 @doc(description="Lấy danh sách khóa học theo giáo viên", tags=["Course"])
@@ -453,6 +493,18 @@ def delete_lesson(lesson_id):
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
     
+
+@course_bp.route("/stats/total-students", methods=["GET"],provide_automatic_options=False)
+@doc(description="Thống kê tổng số học viên của giáo viên", tags=["Course Stats"])
+@teacher_required
+def get_total_students():
+    try:
+        teacher_id = get_jwt_identity()
+        total = course_services.get_total_students_by_teacher(teacher_id)
+        return {"msg": "Thống kê học viên thành công", "total_students": total}, 200
+    except Exception as e:
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
 @course_bp.route("/categories", methods=["GET"])
 @doc(description="Danh sách Category", tags=["Course"])
 @marshal_with(CategorySchema(many=True),200)
@@ -462,8 +514,64 @@ def list_categorie():
         print("HEADERS:", request.headers)
         categories = course_services.get_categories()
         return categories
+
     except Exception as e:
         traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/chapters-lessons", methods=["GET"],provide_automatic_options=False)
+@doc(description="Thống kê tổng số chương và bài học", tags=["Course Stats"])
+@teacher_required
+def get_chapter_lesson_counts():
+    try:
+        teacher_id = get_jwt_identity()
+        result = course_services.get_chapter_lesson_count_by_teacher(teacher_id)
+        return {"msg": "Thống kê thành công", "data": result}, 200
+    except Exception as e:
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/avg-lessons-per-chapter", methods=["GET"],provide_automatic_options=False)
+@doc(description="Thống kê trung bình số bài học mỗi chương", tags=["Course Stats"])
+@teacher_required
+def get_avg_lessons():
+    try:
+        teacher_id = get_jwt_identity()
+        avg = course_services.get_avg_lessons_per_chapter(teacher_id)
+        return {"msg": "Thống kê thành công", "average_lessons": avg}, 200
+    except Exception as e:
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/published-lesson-rate", methods=["GET"],provide_automatic_options=False)
+@doc(description="Thống kê tỷ lệ bài học đã xuất bản", tags=["Course Stats"])
+@teacher_required
+def get_publish_rate():
+    try:
+        teacher_id = get_jwt_identity()
+        data = course_services.get_published_lesson_rate(teacher_id)
+        return {"msg": "Thống kê thành công", "data": data}, 200
+    except Exception as e:
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/avg-rating", methods=["GET"],provide_automatic_options=False)
+@doc(description="Thống kê trung bình đánh giá của giáo viên", tags=["Course Stats"])
+@teacher_required
+def get_avg_rating():
+    try:
+        teacher_id = get_jwt_identity()
+        avg_rating = course_services.get_average_teacher_rating(teacher_id)
+        return {"msg": "Thống kê thành công", "avg_rating": avg_rating}, 200
+    except Exception as e:
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/stats/students-completed-lessons", methods=["GET"],provide_automatic_options=False)
+@doc(description="Thống kê số học viên đã hoàn thành ít nhất một bài học", tags=["Course Stats"])
+@teacher_required
+def get_students_completed_lessons():
+    try:
+        teacher_id = get_jwt_identity()
+        total = course_services.get_students_with_completed_lessons(teacher_id)
+        return {"msg": "Thống kê thành công", "students_completed": total}, 200
+    except Exception as e:
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 # API Enrollment
@@ -485,6 +593,7 @@ def enroll_course(course_id, **kwargs):
         user_id = get_jwt_identity()
 
         # Lấy payment_method từ kwargs (đã được validate bởi schema)
+        print(kwargs)
         payment_method = kwargs.get("payment_method", "").lower()
 
         # Lấy thông tin course trước
@@ -502,10 +611,11 @@ def enroll_course(course_id, **kwargs):
         enrollment, error = enrollment_services.create_enrollment(user_id, course_id, primary_order_id)
 
         if error:
+            print(error)
             return {"msg": error}, 400
 
-        # Kiểm tra xem đây có phải là re-payment không
-        is_repayment = hasattr(enrollment, '_is_existing') or enrollment.status == "pending_payment"
+        # Kiểm tra xem đây có phải là re-payment không (dựa trên payment_status)
+        is_repayment = hasattr(enrollment, '_is_existing') or enrollment.payment_status == False
 
         # Tạo payment URL theo phương thức được chọn
         payment_info = {}
@@ -560,7 +670,7 @@ def enroll_course(course_id, **kwargs):
             "course_id": enrollment.course_id,
             "user_id": enrollment.user_id,
             "progress": enrollment.progress,
-            "status": enrollment.status,  # pending_payment -> active (sau khi thanh toán)
+            "status": enrollment.status,  # unfinished -> completed (based on learning progress)
             "order_id": enrollment.order_id,
             "payment_status": "pending" if not enrollment.payment_status else "paid",
             "message": f"{'Thanh toán lại' if is_repayment else 'Đăng ký khóa học thành công'}. Thanh toán qua {payment_method.upper()}:",
@@ -602,5 +712,13 @@ def course_register_docs(docs):
     docs.register(delete_course, blueprint='course')
     docs.register(delete_chapter, blueprint='course')
     docs.register(delete_lesson, blueprint='course')
+    docs.register(get_total_students, blueprint='course')
+    docs.register(get_chapter_lesson_counts, blueprint='course')
+    docs.register(get_avg_lessons, blueprint='course')
+    docs.register(get_publish_rate, blueprint='course')
+    docs.register(get_avg_rating, blueprint='course')
+    docs.register(get_students_completed_lessons, blueprint='course')
+
     docs.register(list_categorie, blueprint='course')
     docs.register(enroll_course, blueprint='course')
+
