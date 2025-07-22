@@ -12,18 +12,25 @@ class LessonCreateResponseSchema(Schema):
     lesson_title = fields.Str(example="Python cơ bản")
     lesson_id = fields.Int(example=0)
     
+class EnrollmentStatusSchema(Schema):
+    is_enrolled = fields.Bool()
+    payment_status = fields.Bool()
+    progress = fields.Float()
+    status = fields.Str(allow_none=True)
+
 class CourseSchema(Schema):
     id = fields.Int(dump_only=True)
-    title = fields.Str(required=True) 
+    title = fields.Str(required=True)
     description = fields.Str()
     image = fields.Str(required=False)
     price = fields.Float()
     teacher_id = fields.Int()
     category_id = fields.Int()
-    is_public=fields.Boolean()  
-    is_sequential=fields.Boolean()  
+    is_public=fields.Boolean()
+    is_sequential=fields.Boolean()
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
+    enrollment_status = fields.Nested(EnrollmentStatusSchema, dump_only=True)
 
 class ChapterSchema(Schema):
     id = fields.Int(dump_only=True)
