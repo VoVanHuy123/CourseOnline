@@ -55,7 +55,7 @@ def complete_lesson(lesson_id):
             "msg": "Đánh dấu hoàn thành bài học thành công",
             "lesson_id": lesson_id,
             "course_progress": enrollment.progress,
-            "status": enrollment.status
+            "status": enrollment.status.value if enrollment.status else 'unfinished'
         }, 200
     except Exception as e:
         traceback.print_exc()
@@ -119,7 +119,7 @@ def get_course_progress(course_id):
             "course_id": course_id,
             "user_id": user_id,
             "progress": progress,
-            "status": enrollment.status,
+            "status": enrollment.status.value if enrollment.status else 'unfinished',
             "lesson_progresses": [
                 {
                     "lesson_id": lp.lesson_id,
