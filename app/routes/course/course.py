@@ -593,6 +593,7 @@ def enroll_course(course_id, **kwargs):
         user_id = get_jwt_identity()
 
         # Lấy payment_method từ kwargs (đã được validate bởi schema)
+        print(kwargs)
         payment_method = kwargs.get("payment_method", "").lower()
 
         # Lấy thông tin course trước
@@ -610,6 +611,7 @@ def enroll_course(course_id, **kwargs):
         enrollment, error = enrollment_services.create_enrollment(user_id, course_id, primary_order_id)
 
         if error:
+            print(error)
             return {"msg": error}, 400
 
         # Kiểm tra xem đây có phải là re-payment không (dựa trên payment_status)

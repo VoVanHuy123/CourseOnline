@@ -1,7 +1,7 @@
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from app.models.user import User,UserRole,Student,Teacher,Gender # và các model khác
-from app.models.course import Category,Course,Chapter,Lesson
+from app.models.course import Category,Course,Chapter,Lesson,LessonComment,Enrollment
 from app.extensions import db
 from flask_admin.contrib.sqla import ModelView
 from flask_admin import Admin, expose,BaseView,AdminIndexView
@@ -44,3 +44,5 @@ def init_admin(app):
     # admin.add_view(CourseAdmin(Course, db.session)) # dòng dây lỗi
     admin.add_view(ModelView(Chapter, db.session))
     admin.add_view(ModelView(Lesson, db.session))
+    admin.add_view(ModelView(LessonComment, db.session))
+    admin.add_view(ModelView(Enrollment, db.session))
