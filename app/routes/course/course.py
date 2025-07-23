@@ -14,6 +14,9 @@ from app.extensions import db
 import traceback,os
 import cloudinary.uploader
 # from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+from app.models.course import Enrollment
+
 course_bp = Blueprint("course",__name__,url_prefix="/courses")
 
 @course_bp.route("/", methods=["GET"])
@@ -66,53 +69,13 @@ def list_teacher_courses_public(teacher_id, page, per_page):
 
 @course_bp.route("/<int:course_id>", methods=["GET"], provide_automatic_options=False)
 @doc(description="Lấy chi tiết khóa học theo ID", tags=["Course"])
+@marshal_with(CourseSchema, code=200)
 def get_course_detail(course_id):
-    """API lấy chi tiết khóa học theo ID với thông tin enrollment status"""
+    """API lấy chi tiết khóa học theo ID"""
     course = course_services.get_course_by_id(course_id)
     if not course:
         return {"message": "Khóa học không tồn tại"}, 404
-
-    # Serialize course data
-    course_data = CourseSchema().dump(course)
-
-    # Thêm thông tin enrollment status nếu user đã đăng nhập
-    try:
-        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
-        verify_jwt_in_request(optional=True)
-        user_id = get_jwt_identity()
-
-        if user_id:
-            enrollment = enrollment_services.get_enrollment_by_user_and_course(user_id, course_id)
-            if enrollment:
-                course_data['enrollment_status'] = {
-                    'is_enrolled': True,
-                    'payment_status': enrollment.payment_status,
-                    'progress': enrollment.progress,
-                    'status': enrollment.status.value if enrollment.status else 'unfinished'
-                }
-            else:
-                course_data['enrollment_status'] = {
-                    'is_enrolled': False,
-                    'payment_status': False,
-                    'progress': 0.0,
-                    'status': None
-                }
-        else:
-            course_data['enrollment_status'] = {
-                'is_enrolled': False,
-                'payment_status': False,
-                'progress': 0.0,
-                'status': None
-            }
-    except Exception as e:
-        course_data['enrollment_status'] = {
-            'is_enrolled': False,
-            'payment_status': False,
-            'progress': 0.0,
-            'status': None
-        }
-
-    return course_data, 200
+    return course
 
 @course_bp.route("/teacher/<int:teacher_id>", methods=["GET"])
 @doc(description="Lấy danh sách khóa học theo giáo viên", tags=["Course"])
@@ -670,7 +633,7 @@ def enroll_course(course_id, **kwargs):
             "course_id": enrollment.course_id,
             "user_id": enrollment.user_id,
             "progress": enrollment.progress,
-            "status": enrollment.status,  # unfinished -> completed (based on learning progress)
+            "status": enrollment.status.value if enrollment.status else None,  # unfinished -> completed (based on learning progress)
             "order_id": enrollment.order_id,
             "payment_status": "pending" if not enrollment.payment_status else "paid",
             "message": f"{'Thanh toán lại' if is_repayment else 'Đăng ký khóa học thành công'}. Thanh toán qua {payment_method.upper()}:",
@@ -689,6 +652,69 @@ def enroll_course(course_id, **kwargs):
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
+@course_bp.route("/<int:course_id>/enroll-free", methods=["POST"])
+@doc(description="Đăng ký khóa học miễn phí", tags=["Course"])
+@student_required
+def enroll_course_free(course_id):
+    try:
+        user_id = get_jwt_identity()
+        course = course_services.get_course_by_id(course_id)
+        if not course:
+            return {"msg": "Không tìm thấy khóa học"}, 404
+        if course.price > 0:
+            return {"msg": "Khóa học này không phải miễn phí"}, 400
+        enrollment, error = enrollment_services.create_enrollment(user_id, course_id, None)
+        if error:
+            return {"msg": error}, 400
+        enrollment.status = "completed" if enrollment.progress == 100 else "unfinished"
+        enrollment.payment_status = True
+        db.session.commit()
+        response_data = {
+            "id": enrollment.id,
+            "course_id": enrollment.course_id,
+            "user_id": enrollment.user_id,
+            "progress": enrollment.progress,
+            "status": enrollment.status.value if enrollment.status else None,
+            "order_id": enrollment.order_id,
+            "payment_status": "paid",
+            "message": "Đăng ký khóa học miễn phí thành công.",
+            "course": {
+                "id": course.id,
+                "title": course.title,
+                "price": course.price,
+                "description": course.description
+            },
+            "payment_info": None
+        }
+        return response_data, 201
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
+@course_bp.route("/<int:course_id>/enrollment-status", methods=["GET"])
+@doc(description="Lấy trạng thái đăng ký của user với khóa học", tags=["Course"])
+def get_enrollment_status(course_id):
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            enrollment_status = course_services.get_enrollment_status(user_id, course_id)
+        else:
+            enrollment_status = {
+                'is_enrolled': False,
+                'payment_status': False,
+                'progress': 0.0,
+                'status': None
+            }
+        return enrollment_status, 200
+    except Exception as e:
+        return {
+            'is_enrolled': False,
+            'payment_status': False,
+            'progress': 0.0,
+            'status': None,
+            'error': str(e)
+        }, 200
 
 # thêm vào swagger-ui
 #đăng kí các hàm ở đây để hiện lên swagger
@@ -721,4 +747,7 @@ def course_register_docs(docs):
 
     docs.register(list_categorie, blueprint='course')
     docs.register(enroll_course, blueprint='course')
+    docs.register(enroll_course_free, blueprint='course')
+    docs.register(get_enrollment_status, blueprint='course')
+
 

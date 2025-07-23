@@ -157,3 +157,22 @@ def get_students_with_completed_lessons(teacher_id):
         .join(Course, Course.id == Chapter.course_id) \
         .filter(Course.teacher_id == teacher_id, LessonProgress.is_completed == True).scalar()
     return result
+
+def get_enrollment_status(user_id, course_id):
+    from app.models.course import Enrollment
+    is_enrolled = False
+    payment_status = False
+    progress = 0.0
+    status = None
+    enrollment = Enrollment.query.filter_by(user_id=user_id, course_id=course_id).first()
+    if enrollment:
+        is_enrolled = True
+        payment_status = enrollment.payment_status
+        progress = enrollment.progress
+        status = enrollment.status.value if enrollment.status else None
+    return {
+        'is_enrolled': is_enrolled,
+        'payment_status': payment_status,
+        'progress': progress,
+        'status': status
+    }
