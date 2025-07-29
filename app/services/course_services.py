@@ -1,8 +1,10 @@
 from app.extensions import db
-from app.models.course import Course,Chapter,Lesson,Category,Enrollment, CourseReview,LessonProgress
+from app.models.course import Course,Chapter,Lesson,Category,Enrollment,CourseReview,LessonProgress
 from app.models.user import Teacher
+from sqlalchemy import func
 
-from sqlalchemy import or_, func
+
+from sqlalchemy import or_
 
 # from flask_sqlalchemy import Pagination
 def get_courses(page, per_page):
@@ -176,3 +178,5 @@ def get_enrollment_status(user_id, course_id):
         'progress': progress,
         'status': status
     }
+
+
