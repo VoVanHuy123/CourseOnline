@@ -472,7 +472,7 @@ def get_total_students():
 @course_bp.route("/categories", methods=["GET"])
 @doc(description="Danh sách Category", tags=["Course"])
 @marshal_with(CategorySchema(many=True),200)
-@login_required
+# @login_required
 def list_categorie():
     try:
         print("HEADERS:", request.headers)

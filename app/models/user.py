@@ -25,6 +25,7 @@ class User(BaseModel,UserMixin):
     avatar = Column(String(225),nullable=True)
     is_validate = Column(Boolean,default=False)
     comments = relationship('LessonComment', backref='user', lazy=True , cascade='all, delete-orphan')
+    review = relationship('CourseReview', backref='user', lazy=True , cascade='all, delete-orphan')
     __mapper_args__ = {
         'polymorphic_identity': 'user',
         'polymorphic_on': role 

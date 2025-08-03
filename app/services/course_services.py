@@ -1,10 +1,25 @@
 from app.extensions import db
-from app.models.course import Course,Chapter,Lesson,Category,Enrollment,CourseReview,LessonProgress
+from app.models.course import Course,Chapter,Lesson,Category,Enrollment,CourseReview,LessonProgress,CourseHistory
 from app.models.user import Teacher
 from sqlalchemy import func
 
 
 from sqlalchemy import or_
+
+def save_course_history(course, action):
+    history = CourseHistory(
+        action=action,
+        title=course.title,
+        description=course.description,
+        price=course.price,
+        image=course.image,
+        is_sequential=course.is_sequential,
+        is_public=course.is_public,
+        category_id=course.category_id,
+        course_id=course.id,
+        teacher_id=course.teacher_id,
+    )
+    db.session.add(history)
 
 # from flask_sqlalchemy import Pagination
 def get_courses(page, per_page):
