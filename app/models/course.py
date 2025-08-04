@@ -56,18 +56,33 @@ class Lesson(BaseModel):
     chapter_id = Column(Integer, ForeignKey('chapter.id',ondelete="CASCADE"))
 
     comments = relationship('LessonComment', backref='lesson', lazy=True , cascade='all, delete-orphan')
-class CourseHistory(BaseModel):
+# class CourseHistory(BaseModel):
+#     id = Column(Integer, primary_key=True)
+#     action = Column(String(20))  # "create" hoặc "update"
+#     title = Column(String(100))
+#     description = Column(Text)
+#     price = Column(Float)
+#     image = Column(String(255))
+#     is_sequential = Column(Boolean)
+#     is_public = Column(Boolean)
+#     category_id = Column(Integer)
+#     course_id = Column(Integer, ForeignKey('course.id', ondelete="CASCADE"))
+#     teacher_id = Column(Integer, ForeignKey('user.id', ondelete="CASCADE"))
+#     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+class LessonHistory(BaseModel):
     id = Column(Integer, primary_key=True)
-    action = Column(String(20))  # "create" hoặc "update"
+    action = Column(String(20))  # 'create' hoặc 'update'
     title = Column(String(100))
     description = Column(Text)
-    price = Column(Float)
+    type = Column(Enum(Type))
+    content_url = Column(String(255))
     image = Column(String(255))
-    is_sequential = Column(Boolean)
-    is_public = Column(Boolean)
-    category_id = Column(Integer)
-    course_id = Column(Integer, ForeignKey('course.id', ondelete="CASCADE"))
-    teacher_id = Column(Integer, ForeignKey('user.id', ondelete="CASCADE"))
+    is_published = Column(Boolean)
+    order = Column(Integer)
+    is_locked = Column(Boolean)
+
+    lesson_id = Column(Integer, ForeignKey('lesson.id', ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey('user.id', ondelete="CASCADE"))
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class LessonComment(BaseModel):

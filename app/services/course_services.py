@@ -1,23 +1,39 @@
 from app.extensions import db
-from app.models.course import Course,Chapter,Lesson,Category,Enrollment,CourseReview,LessonProgress,CourseHistory
+from app.models.course import Course,Chapter,Lesson,Category,Enrollment,CourseReview,LessonProgress,LessonHistory
 from app.models.user import Teacher
 from sqlalchemy import func
 
 
 from sqlalchemy import or_
 
-def save_course_history(course, action):
-    history = CourseHistory(
+# def save_course_history(course, action):
+#     history = CourseHistory(
+#         action=action,
+#         title=course.title,
+#         description=course.description,
+#         price=course.price,
+#         image=course.image,
+#         is_sequential=course.is_sequential,
+#         is_public=course.is_public,
+#         category_id=course.category_id,
+#         course_id=course.id,
+#         teacher_id=course.teacher_id,
+#     )
+#     db.session.add(history)
+
+def save_lesson_history(lesson, user_id, action):
+    history = LessonHistory(
         action=action,
-        title=course.title,
-        description=course.description,
-        price=course.price,
-        image=course.image,
-        is_sequential=course.is_sequential,
-        is_public=course.is_public,
-        category_id=course.category_id,
-        course_id=course.id,
-        teacher_id=course.teacher_id,
+        title=lesson.title,
+        description=lesson.description,
+        type=lesson.type,
+        content_url=lesson.content_url,
+        image=lesson.image,
+        is_published=lesson.is_published,
+        order=lesson.order,
+        is_locked=lesson.is_locked,
+        lesson_id=lesson.id,
+        user_id=user_id,
     )
     db.session.add(history)
 
