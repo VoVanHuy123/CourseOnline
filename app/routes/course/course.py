@@ -1,12 +1,23 @@
 from flask import Blueprint, jsonify, request
 from flask_apispec import use_kwargs, marshal_with, doc
-from app.schemas.course import CourseSchema,ChapterSchema,LessonSchema,CourseCreateResponseSchema,ChapterCreateResponseSchema,LessonInChapterDumpSchema,CategorySchema,ListChapterSchema,EnrollmentResponseSchema,EnrollmentRequestSchema
+from app.schemas.course import (
+    LessonHistorySchema,
+    LessonHistoryListSchema,
+    CourseSchema,
+    ChapterSchema,
+    LessonSchema,
+    CourseCreateResponseSchema,
+    ChapterCreateResponseSchema,
+    LessonInChapterDumpSchema,
+    CategorySchema,
+    ListChapterSchema,
+    EnrollmentResponseSchema,
+    EnrollmentRequestSchema)
 from app.extensions import login_manager
-from app.services import course_services ,services
+from app.services import course_services ,enrollment_services, payment_services
 from app.services.user_services import get_teacher
-from app.services import enrollment_services, payment_services
 from app.perms.perms import teacher_required,login_required,student_required,owner_required
-from app.models.course import Type,Course
+from app.models.course import Type,Course,LessonHistory
 from flask_jwt_extended import  get_jwt_identity
 # from flask_sqlalchemy import Pagination
 from marshmallow import fields
@@ -181,7 +192,7 @@ def update_course(course_id):
         if image_file:
             result = cloudinary.uploader.upload(image_file)
             course.image = result["secure_url"]
-
+        
         db.session.commit()
         return {"msg": "Cập nhật khoá học thành công"}, 200
     except Exception as e:
@@ -353,12 +364,7 @@ def create_lesson(**kwargs):
         # --- Lưu DB ---
         lesson = course_services.create_lesson_in_db(**kwargs)
 
-        # return {
-        #     "msg"      : "Tạo bài học thành công",
-        #     "lesson_id": lesson.id,
-        #     "lesson_title": lesson.title,
-        #     "content_url": lesson.content_url,
-        # }, 201
+        course_services.save_lesson_history(lesson, user_id=get_jwt_identity(), action="create")
         return lesson, 201
 
     except Exception as e:
@@ -427,12 +433,7 @@ def update_lesson(lesson_id):
             else:
                 return {"msg": "Loại bài học không yêu cầu file"}, 400
             lesson.content_url = result["secure_url"]
-        # if file and file.filename::
-        #     # Upload lại nếu có file mới
-        #     resource_type = "video" if lesson.type == "video" else "raw"
-        #     result = cloudinary.uploader.upload(file, resource_type=resource_type)
-        #     lesson.content_url = result["secure_url"]
-
+        course_services.save_lesson_history(lesson, user_id=get_jwt_identity(), action="update")
         db.session.commit()
         return {"msg": "Cập nhật bài học thành công"}, 200
     except Exception as e:
@@ -457,6 +458,38 @@ def delete_lesson(lesson_id):
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
     
 
+
+@course_bp.route("/lesson-histories", methods=["GET"])
+@doc(description="Lấy danh sách lịch sử chỉnh sửa bài học", tags=["LessonHistory"])
+@marshal_with(LessonHistoryListSchema(many=True))
+@teacher_required
+def get_lesson_histories():
+    try:
+        lesson_id = request.args.get("lesson_id", type=int)
+
+        query = LessonHistory.query
+        if lesson_id:
+            query = query.filter(LessonHistory.lesson_id == lesson_id)
+
+        histories = query.order_by(LessonHistory.created_at.desc()).all()
+        return histories, 200
+    except Exception as e:
+        print(e)
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+@course_bp.route("/lesson-history/<int:lesson_history_id>", methods=["GET"])
+@doc(description="Lấy danh sách lịch sử chỉnh sửa bài học", tags=["LessonHistory"])
+@marshal_with(LessonHistorySchema)
+@owner_required(LessonHistory,lookup_arg="lesson_history_id")
+def get_lesson_history(lesson_history_id):
+    try:
+        history = LessonHistory.query.get(lesson_history_id)
+        if not history:
+            return {"msg": "Không tìm thấy lịch sử"}, 404
+        return history, 200
+    except Exception as e:
+        print(e)
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
+
 @course_bp.route("/stats/total-students", methods=["GET"],provide_automatic_options=False)
 @doc(description="Thống kê tổng số học viên của giáo viên", tags=["Course Stats"])
 @teacher_required
@@ -472,7 +505,7 @@ def get_total_students():
 @course_bp.route("/categories", methods=["GET"])
 @doc(description="Danh sách Category", tags=["Course"])
 @marshal_with(CategorySchema(many=True),200)
-@login_required
+# @login_required
 def list_categorie():
     try:
         print("HEADERS:", request.headers)
@@ -681,6 +714,8 @@ def course_register_docs(docs):
     docs.register(update_course, blueprint='course')
     docs.register(update_chapter, blueprint='course')
     docs.register(update_lesson, blueprint='course')
+    docs.register(get_lesson_histories, blueprint='course')
+    docs.register(get_lesson_history, blueprint='course')
     docs.register(delete_course, blueprint='course')
     docs.register(delete_chapter, blueprint='course')
     docs.register(delete_lesson, blueprint='course')

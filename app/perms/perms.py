@@ -1,6 +1,9 @@
 from functools import wraps
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity,jwt_required,get_jwt
 from werkzeug.exceptions import Unauthorized, Forbidden
+from functools import wraps
+# from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask import request
 
 def teacher_required(fn):
     @wraps(fn)
@@ -81,10 +84,7 @@ def login_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-from functools import wraps
-from flask_jwt_extended import get_jwt_identity, jwt_required
-from werkzeug.exceptions import Forbidden
-from flask import request
+
 
 def owner_required(model, user_field="user_id", lookup_arg="id"):# ví dụ update_review(review_id, **kwargs): thì lookup_arg = "review_id"
     def decorator(fn):                                      
@@ -107,5 +107,43 @@ def owner_required(model, user_field="user_id", lookup_arg="id"):# ví dụ upda
                 raise Forbidden("Bạn không có quyền truy cập tài nguyên này")
 
             return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+def owner_or_admin_required(model, user_field="user_id", lookup_arg="id"):
+    """
+    Middleware kiểm tra xem user hiện tại có phải là:
+    - Chủ sở hữu của đối tượng (qua user_id hoặc id),
+    - Hoặc là admin.
+
+    :param model: Model SQLAlchemy để truy vấn.
+    :param user_field: Trường đại diện cho người sở hữu (vd: 'id', 'user_id').
+    :param lookup_arg: Tên của tham số ID trong URL (vd: 'review_id', 'student_id').
+    """
+    def decorator(fn):
+        @wraps(fn)
+        @jwt_required()
+        def wrapper(*args, **kwargs):
+            user_id = get_jwt_identity()
+            claims = get_jwt()
+            role = claims.get("role")
+
+            obj_id = kwargs.get(lookup_arg)
+            if obj_id is None:
+                raise Forbidden("Không tìm thấy ID đối tượng để kiểm tra quyền.")
+
+            # Truy vấn đối tượng
+            obj = model.query.get(obj_id)
+            if not obj:
+                raise Forbidden("Không tìm thấy đối tượng.")
+
+            # Nếu là admin thì cho phép
+            if role == "admin":
+                return fn(*args, **kwargs)
+
+            # Nếu là chủ sở hữu thì cho phép
+            if getattr(obj, user_field) == int(user_id):
+                return fn(*args, **kwargs)
+
+            raise Forbidden("Bạn không có quyền truy cập tài nguyên này.")
         return wrapper
     return decorator
