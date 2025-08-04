@@ -135,6 +135,7 @@ def create_vnpay_payment_url_with_order_id(user_id, course_id, amount, order_id,
     vnp_return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
     vnp_api_url = os.getenv("VNPAY_API_URL")
 
+
     
     vnpay = Vnpay(vnp_tmn_code, vnp_hash_secret, vnp_return_url, vnp_url, vnp_api_url)
 
@@ -232,6 +233,7 @@ def create_momo_payment_request(user_id, course_id, amount):
     endpoint = os.getenv("MOMO_ENDPOINT")
     return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
     ipn_url = os.getenv("BACK_END_URL") + "/payment/momo/ipn"
+
 
     request_data = {
         "partnerCode": partner_code,
