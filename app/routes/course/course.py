@@ -1,18 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_apispec import use_kwargs, marshal_with, doc
-from app.schemas.course import (
-    LessonHistorySchema,
-    LessonHistoryListSchema,
-    CourseSchema,
-    ChapterSchema,
-    LessonSchema,
-    CourseCreateResponseSchema,
-    ChapterCreateResponseSchema,
-    LessonInChapterDumpSchema,
-    CategorySchema,
-    ListChapterSchema,
-    EnrollmentResponseSchema,
-    EnrollmentRequestSchema)
+from app.schemas.course import CourseSchema,ChapterSchema,LessonSchema,CourseCreateResponseSchema,ChapterCreateResponseSchema,LessonInChapterDumpSchema,CategorySchema,ListChapterSchema,EnrollmentResponseSchema,EnrollmentRequestSchema,EnrollmentSchema
 from app.extensions import login_manager
 from app.services import course_services ,enrollment_services, payment_services
 from app.services.user_services import get_teacher
@@ -674,6 +662,7 @@ def enroll_course_free(course_id):
 @doc(description="Lấy trạng thái đăng ký của user với khóa học", tags=["Course"])
 def get_enrollment_status(course_id):
     try:
+        from flask_jwt_extended import verify_jwt_in_request
         verify_jwt_in_request(optional=True)
         user_id = get_jwt_identity()
         if user_id:
@@ -687,6 +676,7 @@ def get_enrollment_status(course_id):
             }
         return enrollment_status, 200
     except Exception as e:
+        traceback.print_exc()
         return {
             'is_enrolled': False,
             'payment_status': False,
@@ -694,6 +684,26 @@ def get_enrollment_status(course_id):
             'status': None,
             'error': str(e)
         }, 200
+
+@course_bp.route("/enrollment/order/<string:order_id>", methods=["GET"])
+@doc(description="Lấy thông tin enrollment theo order_id", tags=["Course"])
+@marshal_with(EnrollmentSchema, code=200)
+def get_enrollment_by_order_id(order_id):
+    """
+    API lấy thông tin enrollment theo order_id
+    - Dùng để lấy course_id từ order_id sau khi thanh toán thành công
+    - Không yêu cầu authentication vì được gọi từ payment return page
+    """
+    try:
+        enrollment = enrollment_services.get_enrollment_by_order_id(order_id)
+        if not enrollment:
+            return {"msg": "Không tìm thấy đăng ký khóa học với order_id này"}, 404
+
+        return enrollment, 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 # thêm vào swagger-ui
 #đăng kí các hàm ở đây để hiện lên swagger
@@ -730,5 +740,5 @@ def course_register_docs(docs):
     docs.register(enroll_course, blueprint='course')
     docs.register(enroll_course_free, blueprint='course')
     docs.register(get_enrollment_status, blueprint='course')
-
+    docs.register(get_enrollment_by_order_id, blueprint='course')
 
