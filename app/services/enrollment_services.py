@@ -1,7 +1,12 @@
 from app.extensions import db
-from app.models.course import Enrollment, Course, Status
+from app.models.course import Enrollment, Course, Status, PaymentHistory
 from app.models.user import User
 from sqlalchemy import and_
+from datetime import datetime
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 def get_enrollment_by_user_and_course(user_id, course_id):
     """Lấy enrollment theo user_id và course_id"""
@@ -88,6 +93,15 @@ def update_enrollment_payment_status_by_order_id(order_id, payment_success=True)
     try:
         db.session.commit()
         print(f"Enrollment Debug - Successfully committed changes to database")
+
+        # Gửi email hóa đơn nếu thanh toán thành công và chưa gửi trước đó
+        if payment_success and not old_payment_status:
+            try:
+                send_payment_invoice_email(enrollment)
+            except Exception as email_error:
+                logger.error(f"Failed to send invoice email for enrollment {enrollment.id}: {str(email_error)}")
+                # Không return False vì email lỗi không ảnh hưởng đến payment flow
+
         return True, "Cập nhật thành công"
     except Exception as e:
         print(f"Enrollment Debug - Database commit failed: {str(e)}")
@@ -140,3 +154,76 @@ def check_user_access_to_course(user_id, course_id):
         return False, "Bạn cần thanh toán để truy cập khóa học"
 
     return True, "Có quyền truy cập"
+
+def send_payment_invoice_email(enrollment):
+    """
+    Gửi email hóa đơn thanh toán cho enrollment
+
+    Args:
+        enrollment: Enrollment object đã thanh toán thành công
+    """
+    try:
+        from app.services.email_services import email_service
+
+        # Lấy thông tin user
+        user = User.query.get(enrollment.user_id)
+        if not user:
+            logger.error(f"User not found for enrollment {enrollment.id}")
+            return False
+
+        # Lấy thông tin course
+        course = Course.query.get(enrollment.course_id)
+        if not course:
+            logger.error(f"Course not found for enrollment {enrollment.id}")
+            return False
+
+        # Chuẩn bị dữ liệu course
+        course_data = {
+            'id': course.id,
+            'title': course.title,
+            'description': course.description or '',
+            'price': course.price
+        }
+
+        # Lấy thông tin payment từ PaymentHistory
+        payment_history = PaymentHistory.query.filter_by(
+            enrollment_id=enrollment.id,
+            payment_status=True
+        ).first()
+
+        if payment_history:
+            payment_method = payment_history.payment_method.upper()
+            payment_date = payment_history.payment_date or payment_history.updated_day
+            order_id = payment_history.order_id
+        else:
+            # Fallback nếu không có payment history
+            payment_method = 'Online Payment'
+            payment_date = enrollment.updated_day or enrollment.created_day or datetime.now()
+            order_id = enrollment.order_id or 'N/A'
+
+        # Chuẩn bị dữ liệu payment
+        payment_data = {
+            'order_id': order_id,
+            'payment_method': payment_method,
+            'amount': course.price,
+            'payment_date': payment_date
+        }
+
+        # Gửi email
+        success = email_service.send_payment_invoice_email(
+            user_email=user.email,
+            user_name=user.full_name or user.username,
+            course_data=course_data,
+            payment_data=payment_data
+        )
+
+        if success:
+            logger.info(f"Invoice email sent successfully for enrollment {enrollment.id}")
+        else:
+            logger.error(f"Failed to send invoice email for enrollment {enrollment.id}")
+
+        return success
+
+    except Exception as e:
+        logger.error(f"Error in send_payment_invoice_email for enrollment {enrollment.id}: {str(e)}")
+        return False
