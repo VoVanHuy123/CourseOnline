@@ -196,13 +196,15 @@ def send_payment_invoice_email(enrollment):
         # Chuẩn bị dữ liệu enrollment (chỉ sử dụng model có sẵn)
         enrollment_data = {
             'order_id': enrollment.order_id or 'N/A',
-            'payment_date': enrollment.updated_day or enrollment.created_day or datetime.now()
+            'payment_date': enrollment.updated_at or datetime.now()
         }
 
         # Gửi email
+        # Construct full name from first_name and last_name since full_name doesn't exist
+        user_full_name = f"{user.first_name} {user.last_name}".strip() if user.first_name and user.last_name else user.username
         success = email_service.send_payment_invoice_email(
             user_email=user.email,
-            user_name=user.full_name or user.username,
+            user_name=user_full_name,
             course_data=course_data,
             enrollment_data=enrollment_data
         )
