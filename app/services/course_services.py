@@ -115,17 +115,19 @@ def get_courses_by_student(student_id):
 
     return Course.query.filter(Course.id.in_(course_ids), Course.is_active == True).all()
 
-def search_courses(query):
-    """Tìm kiếm khóa học theo từ khóa trong title và description"""
-    # Tìm kiếm trong title và description
-    return Course.query.filter(
-        or_(
-            Course.title.ilike(f'%{query}%'),
-            Course.description.ilike(f'%{query}%')
-        ),
-        Course.is_public == True,
-        Course.is_active == True
-    ).all()
+def search_courses_by_query(query):
+    search = f"%{query.lower()}%"
+    return Course.query.join(Teacher, Course.teacher_id == Teacher.id) \
+        .join(Category, Course.category_id == Category.id) \
+        .filter(
+            db.or_(
+                db.func.lower(Course.title).like(search),
+                db.func.lower(Teacher.first_name).like(search),
+                db.func.lower(Teacher.last_name).like(search),
+                db.func.lower(Category.name).like(search)
+            )
+        ).all()
+
 
 def get_total_students_by_teacher(teacher_id):
     """Thống kê tổng số học viên theo giáo viên"""
