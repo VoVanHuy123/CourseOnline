@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models.course import Enrollment, Course, Status, PaymentHistory
+from app.models.course import Enrollment, Course, Status
 from app.models.user import User
 from sqlalchemy import and_
 from datetime import datetime
@@ -7,6 +7,9 @@ import logging
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Set để track các enrollment đã gửi email (tránh gửi trùng lặp trong session)
+_email_sent_enrollments = set()
 
 def get_enrollment_by_user_and_course(user_id, course_id):
     """Lấy enrollment theo user_id và course_id"""
@@ -97,7 +100,12 @@ def update_enrollment_payment_status_by_order_id(order_id, payment_success=True)
         # Gửi email hóa đơn nếu thanh toán thành công và chưa gửi trước đó
         if payment_success and not old_payment_status:
             try:
-                send_payment_invoice_email(enrollment)
+                # Kiểm tra xem đã gửi email cho enrollment này chưa
+                if enrollment.id not in _email_sent_enrollments:
+                    send_payment_invoice_email(enrollment)
+                    _email_sent_enrollments.add(enrollment.id)
+                else:
+                    logger.info(f"Email already sent for enrollment {enrollment.id}, skipping")
             except Exception as email_error:
                 logger.error(f"Failed to send invoice email for enrollment {enrollment.id}: {str(email_error)}")
                 # Không return False vì email lỗi không ảnh hưởng đến payment flow
@@ -185,28 +193,10 @@ def send_payment_invoice_email(enrollment):
             'price': course.price
         }
 
-        # Lấy thông tin payment từ PaymentHistory
-        payment_history = PaymentHistory.query.filter_by(
-            enrollment_id=enrollment.id,
-            payment_status=True
-        ).first()
-
-        if payment_history:
-            payment_method = payment_history.payment_method.upper()
-            payment_date = payment_history.payment_date or payment_history.updated_day
-            order_id = payment_history.order_id
-        else:
-            # Fallback nếu không có payment history
-            payment_method = 'Online Payment'
-            payment_date = enrollment.updated_day or enrollment.created_day or datetime.now()
-            order_id = enrollment.order_id or 'N/A'
-
-        # Chuẩn bị dữ liệu payment
-        payment_data = {
-            'order_id': order_id,
-            'payment_method': payment_method,
-            'amount': course.price,
-            'payment_date': payment_date
+        # Chuẩn bị dữ liệu enrollment (chỉ sử dụng model có sẵn)
+        enrollment_data = {
+            'order_id': enrollment.order_id or 'N/A',
+            'payment_date': enrollment.updated_day or enrollment.created_day or datetime.now()
         }
 
         # Gửi email
@@ -214,7 +204,7 @@ def send_payment_invoice_email(enrollment):
             user_email=user.email,
             user_name=user.full_name or user.username,
             course_data=course_data,
-            payment_data=payment_data
+            enrollment_data=enrollment_data
         )
 
         if success:

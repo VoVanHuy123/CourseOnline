@@ -32,10 +32,10 @@ Hệ thống email tự động gửi hóa đơn thanh toán khóa học sau khi
    - HTML template generation
    - Error handling and logging
 
-2. **PaymentHistory Model** (`app/models/course.py`)
-   - Tracks payment details
-   - Links to enrollment, user, and course
-   - Stores payment method and transaction info
+2. **Existing Models Integration**
+   - Uses only existing models: Enrollment, Course, User
+   - No additional database tables required
+   - Leverages order_id and timestamps from Enrollment
 
 3. **Email API Endpoints** (`app/routes/email/email.py`)
    - Manual email sending for testing
@@ -52,13 +52,12 @@ Hệ thống email tự động gửi hóa đơn thanh toán khóa học sau khi
 Payment Gateway (VNPay/MoMo)
     ↓ IPN/Callback
 Payment Service
-    ↓ Create PaymentHistory
-    ↓ Update Enrollment
+    ↓ Update Enrollment (payment_status = True)
 Enrollment Service
-    ↓ Check payment_status change
-    ↓ Send Email (if first time)
+    ↓ Check payment_status change (False → True)
+    ↓ Send Email (if first time, prevent duplicates)
 Email Service
-    ↓ Generate HTML
+    ↓ Generate HTML template
     ↓ Send via SMTP
 User receives invoice email
 ```
@@ -126,28 +125,12 @@ Content-Type: application/json
 
 ## Database Schema
 
-### PaymentHistory Table
-```sql
-CREATE TABLE payment_history (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    created_day DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_day DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    order_id VARCHAR(100) NOT NULL UNIQUE,
-    payment_method VARCHAR(50) NOT NULL,
-    amount FLOAT NOT NULL,
-    payment_status BOOLEAN DEFAULT FALSE,
-    transaction_id VARCHAR(100),
-    payment_date DATETIME,
-    response_code VARCHAR(10),
-    response_message TEXT,
-    enrollment_id INT,
-    user_id INT,
-    course_id INT,
-    FOREIGN KEY (enrollment_id) REFERENCES enrollment(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
-    FOREIGN KEY (course_id) REFERENCES course(id) ON DELETE CASCADE
-);
-```
+### Using Existing Models Only
+- **Enrollment**: Contains order_id, payment_status, created_day, updated_day
+- **Course**: Contains title, description, price
+- **User**: Contains email, full_name, username
+
+No additional database tables required! The system leverages existing data structure.
 
 ## Testing
 

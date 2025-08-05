@@ -20,17 +20,17 @@ class EmailService:
         self.from_email = os.getenv('FROM_EMAIL', self.smtp_username)
         self.frontend_base_url = os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000')
         
-    def send_payment_invoice_email(self, user_email: str, user_name: str, 
-                                 course_data: Dict[str, Any], payment_data: Dict[str, Any]) -> bool:
+    def send_payment_invoice_email(self, user_email: str, user_name: str,
+                                 course_data: Dict[str, Any], enrollment_data: Dict[str, Any]) -> bool:
         """
         Gửi email hóa đơn thanh toán khóa học
-        
+
         Args:
             user_email: Email người nhận
             user_name: Tên người nhận
             course_data: Thông tin khóa học (id, title, price, description)
-            payment_data: Thông tin thanh toán (order_id, payment_method, amount, payment_date)
-        
+            enrollment_data: Thông tin enrollment (order_id, payment_date)
+
         Returns:
             bool: True nếu gửi thành công, False nếu thất bại
         """
@@ -42,7 +42,7 @@ class EmailService:
             html_content = self._create_invoice_html_template(
                 user_name=user_name,
                 course_data=course_data,
-                payment_data=payment_data
+                enrollment_data=enrollment_data
             )
             
             # Gửi email
@@ -53,9 +53,9 @@ class EmailService:
             )
             
             if success:
-                logger.info(f"Invoice email sent successfully to {user_email} for order {payment_data.get('order_id')}")
+                logger.info(f"Invoice email sent successfully to {user_email} for order {enrollment_data.get('order_id')}")
             else:
-                logger.error(f"Failed to send invoice email to {user_email} for order {payment_data.get('order_id')}")
+                logger.error(f"Failed to send invoice email to {user_email} for order {enrollment_data.get('order_id')}")
                 
             return success
             
@@ -90,30 +90,30 @@ class EmailService:
             logger.error(f"SMTP error: {str(e)}")
             return False
     
-    def _create_invoice_html_template(self, user_name: str, course_data: Dict[str, Any], 
-                                    payment_data: Dict[str, Any]) -> str:
+    def _create_invoice_html_template(self, user_name: str, course_data: Dict[str, Any],
+                                    enrollment_data: Dict[str, Any]) -> str:
         """
         Tạo HTML template cho email hóa đơn
         """
         # Format payment date
-        payment_date = payment_data.get('payment_date', datetime.now())
+        payment_date = enrollment_data.get('payment_date', datetime.now())
         if isinstance(payment_date, str):
             try:
                 payment_date = datetime.fromisoformat(payment_date.replace('Z', '+00:00'))
             except:
                 payment_date = datetime.now()
-        
+
         formatted_date = payment_date.strftime("%d/%m/%Y %H:%M:%S")
-        
-        # Format amount
-        amount = payment_data.get('amount', 0)
+
+        # Format amount (from course price)
+        amount = course_data.get('price', 0)
         formatted_amount = f"{amount:,.0f} VNĐ"
-        
+
         # Course link
         course_link = f"{self.frontend_base_url}/courses/{course_data.get('id')}/lessons"
-        
-        # Payment method display
-        payment_method = payment_data.get('payment_method', 'N/A').upper()
+
+        # Payment method display (default since we don't have PaymentHistory)
+        payment_method = "Thanh toán trực tuyến"
         
         template_str = """
 <!DOCTYPE html>
@@ -278,7 +278,7 @@ class EmailService:
             user_name=user_name,
             course_title=course_data.get('title', 'N/A'),
             course_description=course_data.get('description', ''),
-            order_id=payment_data.get('order_id', 'N/A'),
+            order_id=enrollment_data.get('order_id', 'N/A'),
             payment_method=payment_method,
             payment_date=formatted_date,
             amount=formatted_amount,

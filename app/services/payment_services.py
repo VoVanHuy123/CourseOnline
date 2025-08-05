@@ -10,8 +10,6 @@ from urllib.parse import urlencode
 from flask import current_app
 from dotenv import load_dotenv
 from app.services.enrollment_services import update_enrollment_payment_status, update_enrollment_payment_status_by_order_id
-from app.models.course import PaymentHistory, Enrollment
-from app.extensions import db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -208,17 +206,6 @@ def process_vnpay_ipn(params):
         return {"RspCode": "02", "Message": "Missing order_id"}
 
     if vnp_response_code == "00" and vnp_transaction_status == "00":
-        # Tạo PaymentHistory
-        create_payment_history(
-            order_id=vnp_txn_ref,
-            payment_method="vnpay",
-            amount=float(params.get("vnp_Amount", 0)) / 100,  # VNPay amount is in cents
-            payment_status=True,
-            transaction_id=params.get("vnp_TransactionNo"),
-            response_code=vnp_response_code,
-            response_message="Payment successful"
-        )
-
         success, message = update_enrollment_payment_status_by_order_id(
             vnp_txn_ref, payment_success=True
         )
@@ -228,17 +215,6 @@ def process_vnpay_ipn(params):
         else:
             return {"RspCode": "02", "Message": f"Update failed: {message}"}
     else:
-        # Tạo PaymentHistory cho failed payment
-        create_payment_history(
-            order_id=vnp_txn_ref,
-            payment_method="vnpay",
-            amount=float(params.get("vnp_Amount", 0)) / 100,
-            payment_status=False,
-            transaction_id=params.get("vnp_TransactionNo"),
-            response_code=vnp_response_code,
-            response_message=params.get("vnp_ResponseCode", "Payment failed")
-        )
-
         update_enrollment_payment_status_by_order_id(
             vnp_txn_ref, payment_success=False
         )
@@ -453,17 +429,6 @@ def process_momo_ipn(params):
 
     
     if result_code == 0:
-        # Tạo PaymentHistory
-        create_payment_history(
-            order_id=order_id,
-            payment_method="momo",
-            amount=float(params.get("amount", 0)),
-            payment_status=True,
-            transaction_id=params.get("transId"),
-            response_code=str(result_code),
-            response_message="Payment successful"
-        )
-
         success, message = update_enrollment_payment_status_by_order_id(
             order_id, payment_success=True
         )
@@ -473,75 +438,7 @@ def process_momo_ipn(params):
         else:
             return {"resultCode": 2, "message": f"Update failed: {message}"}
     else:
-        # Tạo PaymentHistory cho failed payment
-        create_payment_history(
-            order_id=order_id,
-            payment_method="momo",
-            amount=float(params.get("amount", 0)),
-            payment_status=False,
-            transaction_id=params.get("transId"),
-            response_code=str(result_code),
-            response_message=params.get("message", "Payment failed")
-        )
-
         update_enrollment_payment_status_by_order_id(
             order_id, payment_success=False
         )
         return {"resultCode": 0, "message": "Payment failed but confirmed"}
-
-def create_payment_history(order_id, payment_method, amount, payment_status,
-                          transaction_id=None, response_code=None, response_message=None):
-    """
-    Tạo PaymentHistory record
-
-    Args:
-        order_id: Order ID
-        payment_method: Phương thức thanh toán (vnpay, momo)
-        amount: Số tiền
-        payment_status: Trạng thái thanh toán (True/False)
-        transaction_id: Transaction ID từ gateway
-        response_code: Response code từ gateway
-        response_message: Response message từ gateway
-    """
-    try:
-        # Lấy enrollment từ order_id
-        enrollment = Enrollment.query.filter_by(order_id=order_id).first()
-        if not enrollment:
-            logger.error(f"Enrollment not found for order_id: {order_id}")
-            return False
-
-        # Kiểm tra xem đã có PaymentHistory chưa
-        existing_history = PaymentHistory.query.filter_by(order_id=order_id).first()
-        if existing_history:
-            # Cập nhật existing record
-            existing_history.payment_status = payment_status
-            existing_history.transaction_id = transaction_id
-            existing_history.response_code = response_code
-            existing_history.response_message = response_message
-            if payment_status:
-                existing_history.payment_date = datetime.now()
-        else:
-            # Tạo mới PaymentHistory
-            payment_history = PaymentHistory(
-                order_id=order_id,
-                payment_method=payment_method,
-                amount=amount,
-                payment_status=payment_status,
-                transaction_id=transaction_id,
-                payment_date=datetime.now() if payment_status else None,
-                response_code=response_code,
-                response_message=response_message,
-                enrollment_id=enrollment.id,
-                user_id=enrollment.user_id,
-                course_id=enrollment.course_id
-            )
-            db.session.add(payment_history)
-
-        db.session.commit()
-        logger.info(f"PaymentHistory created/updated for order_id: {order_id}")
-        return True
-
-    except Exception as e:
-        logger.error(f"Error creating PaymentHistory for order_id {order_id}: {str(e)}")
-        db.session.rollback()
-        return False

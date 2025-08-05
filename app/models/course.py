@@ -125,24 +125,3 @@ class CourseReview(BaseModel):
 
     user_id = Column(Integer, ForeignKey('user.id',ondelete="CASCADE"))
     course_id = Column(Integer, ForeignKey('course.id',ondelete="CASCADE"))
-
-class PaymentHistory(BaseModel):
-    id = Column(Integer, primary_key=True)
-    order_id = Column(String(100), nullable=False, unique=True)
-    payment_method = Column(String(50), nullable=False)  # vnpay, momo
-    amount = Column(Float, nullable=False)
-    payment_status = Column(Boolean, default=False)
-    transaction_id = Column(String(100), nullable=True)  # ID từ payment gateway
-    payment_date = Column(DateTime, nullable=True)
-    response_code = Column(String(10), nullable=True)  # Response code từ gateway
-    response_message = Column(Text, nullable=True)  # Response message từ gateway
-
-    # Foreign keys
-    enrollment_id = Column(Integer, ForeignKey('enrollment.id', ondelete="CASCADE"))
-    user_id = Column(Integer, ForeignKey('user.id', ondelete="CASCADE"))
-    course_id = Column(Integer, ForeignKey('course.id', ondelete="CASCADE"))
-
-    # Relationships
-    enrollment = relationship('Enrollment', backref='payment_histories')
-    user = relationship('User', backref='payment_histories')
-    course = relationship('Course', backref='payment_histories')
