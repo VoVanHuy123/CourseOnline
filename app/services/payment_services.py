@@ -10,7 +10,9 @@ from urllib.parse import urlencode
 from flask import current_app
 from dotenv import load_dotenv
 from app.services.enrollment_services import update_enrollment_payment_status, update_enrollment_payment_status_by_order_id
+import logging
 
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 class Vnpay:
@@ -207,7 +209,6 @@ def process_vnpay_ipn(params):
         success, message = update_enrollment_payment_status_by_order_id(
             vnp_txn_ref, payment_success=True
         )
-
 
         if success:
             return {"RspCode": "00", "Message": "Confirm Success"}
@@ -432,13 +433,11 @@ def process_momo_ipn(params):
             order_id, payment_success=True
         )
 
-
         if success:
             return {"resultCode": 0, "message": "Confirm Success"}
         else:
             return {"resultCode": 2, "message": f"Update failed: {message}"}
     else:
-        
         update_enrollment_payment_status_by_order_id(
             order_id, payment_success=False
         )
