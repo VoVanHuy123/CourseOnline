@@ -101,20 +101,16 @@ def get_courses_by_student(student_id):
     return courses
 
 @course_bp.route("/search", methods=["GET"])
-@doc(description="Tìm kiếm khóa học theo từ khóa", tags=["Course"])
+@doc(description="Tìm kiếm khóa học theo chuỗi query", tags=["Course"])
 @marshal_with(CourseSchema(many=True), code=200)
 def search_courses():
-    """API tìm kiếm khóa học theo từ khóa trong title và description"""
-    # Lấy tham số query từ URL
-    query = request.args.get('q', '').strip()
+    query = request.args.get('query', '').strip()
 
     if not query:
-        return {"message": "Vui lòng nhập từ khóa tìm kiếm"}, 400
+        return {"message": "Vui lòng nhập chuỗi tìm kiếm"}, 400
 
-    courses = course_services.search_courses(query)
+    courses = course_services.search_courses_by_query(query)
     return courses
-
-#
 
 @course_bp.route("", methods=['POST'])
 @doc(description="Tạo khóa học mới", tags=["Course"])
