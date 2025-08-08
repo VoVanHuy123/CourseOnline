@@ -1,4 +1,5 @@
 from marshmallow import Schema, fields,post_dump
+from sqlalchemy.orm import relationship, backref
 from enum import Enum
 from app.models.user import Gender
 class UserRole(str, Enum):
@@ -14,16 +15,35 @@ class UserSchema(Schema):
     last_name = fields.Str(required=True)
     email = fields.Email()
     phonenumber = fields.Str()
-    # role = fields.Str(validate=lambda x: x in UserRole)
+    avatar = fields.Str()
     role = fields.Str()  # Không cần validate lại Enum ở đây
-
+    is_validate = fields.Boolean()
     @post_dump
     def convert_enum_to_value(self, data, **kwargs):
-        if isinstance(data.get("role"), str) and data["role"].startswith("UserRole."):
-            # Tách nếu bị serialize sai
-            data["role"] = data["role"].split(".")[1].lower()
+        # Nếu role là Enum hoặc chuỗi bắt đầu bằng UserRole.
+        role = data.get("role")
+        if isinstance(role, str) and role.startswith("UserRole."):
+            data["role"] = role.split(".")[1].lower()
+        elif isinstance(role, UserRole):
+            data["role"] = role.value
         return data
+class TeacherSchema(UserSchema):
+    current_workplace = fields.Str()
+    degree = fields.Str()
+class StudentSchema(UserSchema):
+    student_code = fields.Str()
+    university = fields.Str()
+    gender = fields.Str()
+    # gender = fields.Str(required=True, validate=lambda g: g in [g.value for g in Gender])
 
+    
+
+class UserCommentSchema(Schema):
+    id = fields.Int(dump_only=True)
+    first_name = fields.Str(required=True)
+    last_name = fields.Str(required=True)
+    avatar = fields.Str()
+    
 class UserLoginSchema(Schema):
     username = fields.Str(required=True, metadata={"description": "Tên đăng nhập"})
     password = fields.Str(required=True, metadata={"description": "Mật khẩu"},load_only=True)

@@ -3,32 +3,34 @@ from app.models.course import CourseReview
 from app.schemas.review import CourseReviewSchema, CourseReviewResponseSchema , LessonCommentSchema,LessonCommentResponseSchema
 from webargs.flaskparser import use_kwargs
 from flask_apispec import doc, marshal_with,use_kwargs
-from app.perms.perms import login_required,student_required,owner_required
+from app.perms.perms import login_required,student_required,owner_required,teacher_required
 from flask_jwt_extended import  get_jwt_identity
 from app.services import review_service, user_services
+from marshmallow import fields
 import traceback
 # from app.extensions im
 
 review_bp = Blueprint("review", __name__,url_prefix="/reviews")
 
-@review_bp.route("/", methods=["GET"], provide_automatic_options=False)
-@doc(description="Lấy danh sách review khóa học", tags=["CourseReview"])
+@review_bp.route("", methods=["GET"], provide_automatic_options=False)
+@doc(description="Lấy danh sách review khóa học (phân trang)", tags=["CourseReview"])
 @marshal_with(CourseReviewResponseSchema(many=True))
-@student_required
-# http://127.0.0.1:5000/reviews?course_id=1
 def get_reviews():
     course_id = request.args.get("course_id")
+    page = int(request.args.get("page", 1))          # Mặc định trang 1
+    page_size = int(request.args.get("page_size", 10))  # Mặc định mỗi trang có 10 dòng
+
     if not course_id:
         return {"msg": "Thiếu course_id trong query params"}, 400
+
     try:
-        course_reviews = review_service.get_course_reviews_parent(course_id)
+        course_reviews = review_service.get_course_reviews_parent(course_id, page, page_size)
         return course_reviews, 200
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
-@review_bp.route("/", methods=["POST"])
+@review_bp.route("", methods=["POST"])
 @doc(description="Tạo review khóa học", tags=["CourseReview"])
 @use_kwargs(CourseReviewSchema, location="json")
 @marshal_with(CourseReviewResponseSchema, code=201)
@@ -59,7 +61,7 @@ def update_review(id, **kwargs):
         return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 @review_bp.route("/<int:id>", methods=["DELETE"])
 @doc(description="Xóa review", tags=["CourseReview"])
-@login_required
+@student_required
 @owner_required(model=CourseReview,lookup_arg="id")
 def delete_review(id):
     try:
