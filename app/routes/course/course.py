@@ -519,7 +519,6 @@ def enroll_course(course_id, **kwargs):
         user_id = get_jwt_identity()
 
         # Lấy payment_method từ kwargs (đã được validate bởi schema)
-        print(kwargs)
         payment_method = kwargs.get("payment_method", "").lower()
 
         # Lấy thông tin course trước
@@ -582,7 +581,6 @@ def enroll_course(course_id, **kwargs):
                     "message": momo_response.get("message")
                 }
             except Exception as e:
-                print(f"MoMo URL generation failed: {str(e)}")
                 payment_info = {
                     "payment_url": None,
                     "order_id": primary_order_id,
@@ -685,11 +683,6 @@ def get_enrollment_status(course_id):
 @doc(description="Lấy thông tin enrollment theo order_id", tags=["Course"])
 @marshal_with(EnrollmentSchema, code=200)
 def get_enrollment_by_order_id(order_id):
-    """
-    API lấy thông tin enrollment theo order_id
-    - Dùng để lấy course_id từ order_id sau khi thanh toán thành công
-    - Không yêu cầu authentication vì được gọi từ payment return page
-    """
     try:
         enrollment = enrollment_services.get_enrollment_by_order_id(order_id)
         if not enrollment:
