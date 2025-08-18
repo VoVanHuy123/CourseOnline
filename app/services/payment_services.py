@@ -283,14 +283,12 @@ def create_momo_payment_request(user_id, course_id, amount):
             }
 
     except requests.exceptions.RequestException as e:
-        print(f"MoMo Request Error: {str(e)}")
         return {
             "payUrl": None,
             "orderId": order_id,
             "message": f"MoMo request failed: {str(e)}"
         }
     except Exception as e:
-        print(f"MoMo General Error: {str(e)}")
         return {
             "payUrl": None,
             "orderId": order_id,
@@ -308,6 +306,14 @@ def create_momo_payment_request_with_order_id(user_id, course_id, amount, order_
     endpoint = os.getenv("MOMO_ENDPOINT")
     return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
     ipn_url = os.getenv("BACK_END_URL") + "/payment/momo/ipn"
+
+    # Kiểm tra cấu hình MoMo
+    if not partner_code or not access_key or not secret_key or not endpoint:
+        return {
+            "payUrl": None,
+            "orderId": order_id,
+            "message": "MoMo configuration is not set up properly"
+        }
 
     
     request_data = {
@@ -339,7 +345,6 @@ def create_momo_payment_request_with_order_id(user_id, course_id, amount, order_
 
 
     try:
-        
         response = requests.post(endpoint, json=request_data, timeout=30)
         response_data = response.json()
 
@@ -358,14 +363,12 @@ def create_momo_payment_request_with_order_id(user_id, course_id, amount, order_
             }
 
     except requests.exceptions.RequestException as e:
-        print(f"MoMo Request Error: {str(e)}")
         return {
             "payUrl": None,
             "orderId": order_id,
             "message": f"MoMo request failed: {str(e)}"
         }
     except Exception as e:
-        print(f"MoMo General Error: {str(e)}")
         return {
             "payUrl": None,
             "orderId": order_id,
@@ -406,7 +409,6 @@ def verify_momo_signature(params):
         hashlib.sha256
     ).hexdigest()
 
-
     return calculated_signature == received_signature
 
 def process_momo_ipn(params):
@@ -416,12 +418,10 @@ def process_momo_ipn(params):
     if not verify_momo_signature(params):
         return {"resultCode": 97, "message": "Invalid signature"}
 
-
     
     result_code = params.get("resultCode")
     order_id = params.get("orderId")
     order_info = params.get("orderInfo", "")
-
 
     
     if not order_id:
