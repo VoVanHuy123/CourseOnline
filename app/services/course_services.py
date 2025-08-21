@@ -120,11 +120,15 @@ def search_courses_by_query(query):
     return Course.query.join(Teacher, Course.teacher_id == Teacher.id) \
         .join(Category, Course.category_id == Category.id) \
         .filter(
-            db.or_(
-                db.func.lower(Course.title).like(search),
-                db.func.lower(Teacher.first_name).like(search),
-                db.func.lower(Teacher.last_name).like(search),
-                db.func.lower(Category.name).like(search)
+            db.and_(
+                db.or_(
+                    db.func.lower(Course.title).like(search),
+                    db.func.lower(Teacher.first_name).like(search),
+                    db.func.lower(Teacher.last_name).like(search),
+                    db.func.lower(Category.name).like(search)
+                ),
+                Course.is_public == True,
+                Course.is_active == True
             )
         ).all()
 
