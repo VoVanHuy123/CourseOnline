@@ -83,7 +83,7 @@ class LessonHistory(BaseModel):
 
     lesson_id = Column(Integer, ForeignKey('lesson.id', ondelete="CASCADE"))
     user_id = Column(Integer, ForeignKey('user.id', ondelete="CASCADE"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
 class LessonComment(BaseModel):
     id = Column(Integer, primary_key=True)
@@ -110,6 +110,7 @@ class Enrollment(BaseModel):
 
     user_id = Column(Integer, ForeignKey('user.id',ondelete="CASCADE"))
     course_id = Column(Integer, ForeignKey('course.id',ondelete="CASCADE"))
+    # course = relationship('Course', backref='enrollment', lazy=True , cascade='all, delete-orphan')
 
 class LessonProgress(BaseModel):
     id = Column(Integer, primary_key=True)
