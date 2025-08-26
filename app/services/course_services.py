@@ -133,7 +133,8 @@ def search_courses_by_query(query):
                     db.func.lower(Course.title).like(search),
                     db.func.lower(Teacher.first_name).like(search),
                     db.func.lower(Teacher.last_name).like(search),
-                    db.func.lower(Category.name).like(search)
+                    db.func.lower(Category.name).like(search),
+                    db.func.lower(db.func.concat(Teacher.first_name, ' ', Teacher.last_name)).like(search)
                 ),
                 Course.is_public == True,
                 Course.is_active == True

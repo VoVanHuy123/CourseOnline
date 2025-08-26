@@ -91,7 +91,7 @@ def list_my_courses(id):
 
 
 
-@course_bp.route("/<int:course_id>", methods=["GET"], provide_automatic_options=False)
+@course_bp.route("/<int:course_id>", methods=["GET"])
 @doc(description="Lấy chi tiết khóa học theo ID", tags=["Course"])
 @marshal_with(CourseSchema, code=200)
 def get_course_detail(course_id):
@@ -100,6 +100,23 @@ def get_course_detail(course_id):
     if not course:
         return {"message": "Khóa học không tồn tại"}, 404
     return course
+
+@course_bp.route("/<int:course_id>/teacher", methods=["GET"])
+@doc(description="Lấy thông tin giáo viên của khóa học", tags=["Course"])
+def get_course_teacher(course_id):
+    try:
+        course = course_services.get_course_by_id(course_id)
+        if not course:
+            return {"msg": "Không tìm thấy khóa học"}, 404
+        if not course.teacher_id:
+            return {"msg": "Khóa học chưa gán giáo viên"}, 404
+        teacher = get_teacher(course.teacher_id)
+        if not teacher:
+            return {"msg": "Không tìm thấy giáo viên"}, 404
+        from app.schemas.user import UserCommentSchema
+        return UserCommentSchema().dump(teacher), 200
+    except Exception as e:
+        return {"msg": "Lỗi hệ thống", "error": str(e)}, 500
 
 @course_bp.route("/teacher/<int:teacher_id>", methods=["GET"])
 @doc(description="Lấy danh sách khóa học theo giáo viên", tags=["Course"])
@@ -724,6 +741,7 @@ def get_enrollment_by_order_id(order_id):
 def course_register_docs(docs):
     docs.register(list_courses, blueprint='course')
     docs.register(get_course_detail, blueprint='course')
+    docs.register(get_course_teacher, blueprint='course')
     docs.register(get_courses_by_teacher, blueprint='course')
     docs.register(list_teacher_courses_not_public, blueprint='course')
     docs.register(list_teacher_courses_public, blueprint='course')
