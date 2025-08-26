@@ -193,8 +193,8 @@ def update_student(student_id):
             student.gender = gender_value
 
         # Xử lý avatar
-        if "null_avatar" in data:
-            student.avatar = None
+        # if "null_avatar" in data:
+        #     student.avatar = None
         elif avatar_file:
             result = cloudinary.uploader.upload(avatar_file)
             student.avatar = result["secure_url"]

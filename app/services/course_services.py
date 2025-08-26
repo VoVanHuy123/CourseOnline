@@ -20,6 +20,14 @@ from sqlalchemy import or_
 #         teacher_id=course.teacher_id,
 #     )
 #     db.session.add(history)
+def get_my_courses(user_id):
+    courses = (
+        db.session.query(Course)  # ✅ dùng db.session.query thay vì db.query
+        .join(Enrollment)
+        .filter(Enrollment.user_id == user_id)
+        .all()
+    )
+    return courses
 
 def save_lesson_history(lesson, user_id, action):
     history = LessonHistory(

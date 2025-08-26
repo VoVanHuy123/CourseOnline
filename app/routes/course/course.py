@@ -66,6 +66,31 @@ def list_teacher_courses_public(teacher_id, page, per_page):
         "total_pages": pagination.pages
     }
 
+
+
+@course_bp.route("/my-course/<int:id>", methods=["GET"])
+@doc(description="Khóa học của tôi", tags=["Course"])
+@login_required
+# @use_kwargs({
+#     "page": fields.Int(missing=1),
+#     "per_page": fields.Int(missing=10)
+# }, location="query")
+def list_my_courses(id):
+    courses = course_services.get_my_courses(id)
+
+    # pagination = course_services.get_courses_by_teacher_id_public(teacher_id, page, per_page)
+    # return {
+    #     "data": CourseSchema(many=True).dump(pagination.items),
+    #     "page": pagination.page,
+    #     "per_page": pagination.per_page,
+    #     "total_items": pagination.total,
+    #     "total_pages": pagination.pages
+    # }
+    return CourseSchema(many=True).dump(courses)
+
+
+
+
 @course_bp.route("/<int:course_id>", methods=["GET"], provide_automatic_options=False)
 @doc(description="Lấy chi tiết khóa học theo ID", tags=["Course"])
 @marshal_with(CourseSchema, code=200)
@@ -170,8 +195,8 @@ def update_course(course_id):
             course.is_sequential = data["is_sequential"].lower() == "true"
         if "is_public" in data:
             course.is_public = data["is_public"].lower() == "true"
-        if "null_image" in data:
-            course.image = data["null_image"]
+        # if "null_image" in data:
+        #     course.image = data["null_image"]
         
         if image_file:
             result = cloudinary.uploader.upload(image_file)
@@ -443,13 +468,13 @@ def delete_lesson(lesson_id):
     
 
 
-@course_bp.route("/lesson-histories", methods=["GET"])
+@course_bp.route("/lesson-histories/<int:lesson_id>", methods=["GET"])
 @doc(description="Lấy danh sách lịch sử chỉnh sửa bài học", tags=["LessonHistory"])
 @marshal_with(LessonHistoryListSchema(many=True))
 @teacher_required
-def get_lesson_histories():
+def get_lesson_histories(lesson_id):
     try:
-        lesson_id = request.args.get("lesson_id", type=int)
+        # lesson_id = request.args.get("lesson_id", type=int)
 
         query = LessonHistory.query
         if lesson_id:
@@ -730,4 +755,5 @@ def course_register_docs(docs):
     docs.register(enroll_course_free, blueprint='course')
     docs.register(get_enrollment_status, blueprint='course')
     docs.register(get_enrollment_by_order_id, blueprint='course')
+    docs.register(list_my_courses, blueprint='course')
 

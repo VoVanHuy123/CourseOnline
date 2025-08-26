@@ -117,6 +117,7 @@ class LessonHistoryListSchema(Schema):
     id = fields.Int(dump_only=True)
     action = fields.Str(required=True)
     created_at = fields.DateTime(dump_only=True)
+    lesson_id = fields.Int()
 
 class LessonHistorySchema(Schema):
     id = fields.Int(dump_only=True)
