@@ -42,8 +42,15 @@ def create_app(config_class='config.Config'):
 
 
     # Cho phép frontend React truy cập Flask
-    # CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+    # Cấu hình CORS đầy đủ để qua preflight (OPTIONS)
+    CORS(
+        app,
+        resources={r"/*": {"origins": "http://localhost:5173"}},
+        supports_credentials=True,
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+        expose_headers=["Content-Type"]
+    )
 
 
     from app import models
