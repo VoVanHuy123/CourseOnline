@@ -1,5 +1,7 @@
 from sqlalchemy.orm import relationship, backref
-from sqlalchemy import Column, Enum, Integer, Float, String, Boolean, ForeignKey,Text
+from sqlalchemy import Column, Enum, Integer, Float, String, Boolean, ForeignKey,Text,DateTime
+from datetime import datetime
+
 from .base import BaseModel
 import enum
 
@@ -54,6 +56,34 @@ class Lesson(BaseModel):
     chapter_id = Column(Integer, ForeignKey('chapter.id',ondelete="CASCADE"))
 
     comments = relationship('LessonComment', backref='lesson', lazy=True , cascade='all, delete-orphan')
+# class CourseHistory(BaseModel):
+#     id = Column(Integer, primary_key=True)
+#     action = Column(String(20))  # "create" hoặc "update"
+#     title = Column(String(100))
+#     description = Column(Text)
+#     price = Column(Float)
+#     image = Column(String(255))
+#     is_sequential = Column(Boolean)
+#     is_public = Column(Boolean)
+#     category_id = Column(Integer)
+#     course_id = Column(Integer, ForeignKey('course.id', ondelete="CASCADE"))
+#     teacher_id = Column(Integer, ForeignKey('user.id', ondelete="CASCADE"))
+#     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+class LessonHistory(BaseModel):
+    id = Column(Integer, primary_key=True)
+    action = Column(String(20))  # 'create' hoặc 'update'
+    title = Column(String(100))
+    description = Column(Text)
+    type = Column(Enum(Type))
+    content_url = Column(String(255))
+    image = Column(String(255))
+    is_published = Column(Boolean)
+    order = Column(Integer)
+    is_locked = Column(Boolean)
+
+    lesson_id = Column(Integer, ForeignKey('lesson.id', ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey('user.id', ondelete="CASCADE"))
+    created_at = Column(DateTime, default=datetime.now)
 
 class LessonComment(BaseModel):
     id = Column(Integer, primary_key=True)
@@ -62,7 +92,7 @@ class LessonComment(BaseModel):
 
     user_id = Column(Integer, ForeignKey('user.id',ondelete="CASCADE"))
     lesson_id = Column(Integer, ForeignKey('lesson.id',ondelete="CASCADE"))
-
+    
     replies = relationship('LessonComment', backref=backref('parent', remote_side=[id]), lazy=True,cascade='all, delete-orphan', single_parent=True )
 
 # comment.replies: lấy danh sách các phản hồi (con) của comment này.
@@ -80,6 +110,7 @@ class Enrollment(BaseModel):
 
     user_id = Column(Integer, ForeignKey('user.id',ondelete="CASCADE"))
     course_id = Column(Integer, ForeignKey('course.id',ondelete="CASCADE"))
+    # course = relationship('Course', backref='enrollment', lazy=True , cascade='all, delete-orphan')
 
 class LessonProgress(BaseModel):
     id = Column(Integer, primary_key=True)

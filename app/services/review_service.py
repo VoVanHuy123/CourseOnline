@@ -1,9 +1,12 @@
 from app.models.course import CourseReview
 from app.extensions import db
 
-def get_course_reviews_parent(course_id):
-    course_reviews = CourseReview.query.filter_by(course_id=course_id).all()
-    return course_reviews
+def get_course_reviews_parent(course_id, page=1, page_size=10):
+
+    query = CourseReview.query.filter_by(course_id=course_id).order_by(CourseReview.created_day.desc())
+    paginated_reviews = query.paginate(page=page, per_page=page_size, error_out=False)
+
+    return paginated_reviews.items
 def create_course_review(**kwargs):
     course_review = CourseReview(**kwargs)
     db.session.add(course_review)

@@ -1,8 +1,49 @@
 from app.extensions import db
-from app.models.course import Course,Chapter,Lesson,Category,Enrollment, CourseReview,LessonProgress
+from app.models.course import Course,Chapter,Lesson,Category,Enrollment,CourseReview,LessonProgress,LessonHistory
 from app.models.user import Teacher
+from sqlalchemy import func
 
-from sqlalchemy import or_, func
+
+from sqlalchemy import or_
+
+# def save_course_history(course, action):
+#     history = CourseHistory(
+#         action=action,
+#         title=course.title,
+#         description=course.description,
+#         price=course.price,
+#         image=course.image,
+#         is_sequential=course.is_sequential,
+#         is_public=course.is_public,
+#         category_id=course.category_id,
+#         course_id=course.id,
+#         teacher_id=course.teacher_id,
+#     )
+#     db.session.add(history)
+def get_my_courses(user_id):
+    courses = (
+        db.session.query(Course)  # ✅ dùng db.session.query thay vì db.query
+        .join(Enrollment)
+        .filter(Enrollment.user_id == user_id)
+        .all()
+    )
+    return courses
+
+def save_lesson_history(lesson, user_id, action):
+    history = LessonHistory(
+        action=action,
+        title=lesson.title,
+        description=lesson.description,
+        type=lesson.type,
+        content_url=lesson.content_url,
+        image=lesson.image,
+        is_published=lesson.is_published,
+        order=lesson.order,
+        is_locked=lesson.is_locked,
+        lesson_id=lesson.id,
+        user_id=user_id,
+    )
+    db.session.add(history)
 
 # from flask_sqlalchemy import Pagination
 def get_courses(page, per_page):
@@ -82,17 +123,24 @@ def get_courses_by_student(student_id):
 
     return Course.query.filter(Course.id.in_(course_ids), Course.is_active == True).all()
 
-def search_courses(query):
-    """Tìm kiếm khóa học theo từ khóa trong title và description"""
-    # Tìm kiếm trong title và description
-    return Course.query.filter(
-        or_(
-            Course.title.ilike(f'%{query}%'),
-            Course.description.ilike(f'%{query}%')
-        ),
-        Course.is_public == True,
-        Course.is_active == True
-    ).all()
+def search_courses_by_query(query):
+    search = f"%{query.lower()}%"
+    return Course.query.join(Teacher, Course.teacher_id == Teacher.id) \
+        .join(Category, Course.category_id == Category.id) \
+        .filter(
+            db.and_(
+                db.or_(
+                    db.func.lower(Course.title).like(search),
+                    db.func.lower(Teacher.first_name).like(search),
+                    db.func.lower(Teacher.last_name).like(search),
+                    db.func.lower(Category.name).like(search),
+                    db.func.lower(db.func.concat(Teacher.first_name, ' ', Teacher.last_name)).like(search)
+                ),
+                Course.is_public == True,
+                Course.is_active == True
+            )
+        ).all()
+
 
 def get_total_students_by_teacher(teacher_id):
     """Thống kê tổng số học viên theo giáo viên"""
@@ -157,3 +205,24 @@ def get_students_with_completed_lessons(teacher_id):
         .join(Course, Course.id == Chapter.course_id) \
         .filter(Course.teacher_id == teacher_id, LessonProgress.is_completed == True).scalar()
     return result
+
+def get_enrollment_status(user_id, course_id):
+    from app.models.course import Enrollment
+    is_enrolled = False
+    payment_status = False
+    progress = 0.0
+    status = None
+    enrollment = Enrollment.query.filter_by(user_id=user_id, course_id=course_id).first()
+    if enrollment:
+        is_enrolled = True
+        payment_status = enrollment.payment_status
+        progress = enrollment.progress
+        status = enrollment.status.value if enrollment.status else None
+    return {
+        'is_enrolled': is_enrolled,
+        'payment_status': payment_status,
+        'progress': progress,
+        'status': status
+    }
+
+

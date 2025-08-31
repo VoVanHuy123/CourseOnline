@@ -163,25 +163,6 @@ def momo_ipn():
         traceback.print_exc()
         return {"resultCode": 99, "message": "System error"}, 500
 
-    """Test endpoint để kiểm tra MoMo payment URL generation"""
-    try:
-        data = request.get_json() or {}
-        user_id = data.get("user_id", 1)
-        course_id = data.get("course_id", 1)
-        amount = data.get("amount", 100000)
-
-        # Tạo payment request
-        response = payment_services.create_momo_payment_request(user_id, course_id, amount)
-
-        return {
-            **response,
-            "test_note": "This is a test endpoint. Use actual enrollment API in production."
-        }, 200
-
-    except Exception as e:
-        traceback.print_exc()
-        return {"message": "Test failed", "error": str(e)}, 500
-
 # Đăng ký docs
 def payment_register_docs(docs):
     docs.register(create_vnpayment, blueprint='payment')

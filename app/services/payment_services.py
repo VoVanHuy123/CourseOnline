@@ -10,7 +10,9 @@ from urllib.parse import urlencode
 from flask import current_app
 from dotenv import load_dotenv
 from app.services.enrollment_services import update_enrollment_payment_status, update_enrollment_payment_status_by_order_id
+import logging
 
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 class Vnpay:
@@ -135,6 +137,7 @@ def create_vnpay_payment_url_with_order_id(user_id, course_id, amount, order_id,
     vnp_return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
     vnp_api_url = os.getenv("VNPAY_API_URL")
 
+
     
     vnpay = Vnpay(vnp_tmn_code, vnp_hash_secret, vnp_return_url, vnp_url, vnp_api_url)
 
@@ -207,7 +210,6 @@ def process_vnpay_ipn(params):
             vnp_txn_ref, payment_success=True
         )
 
-
         if success:
             return {"RspCode": "00", "Message": "Confirm Success"}
         else:
@@ -232,6 +234,7 @@ def create_momo_payment_request(user_id, course_id, amount):
     endpoint = os.getenv("MOMO_ENDPOINT")
     return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
     ipn_url = os.getenv("BACK_END_URL") + "/payment/momo/ipn"
+
 
     request_data = {
         "partnerCode": partner_code,
@@ -280,14 +283,12 @@ def create_momo_payment_request(user_id, course_id, amount):
             }
 
     except requests.exceptions.RequestException as e:
-        print(f"MoMo Request Error: {str(e)}")
         return {
             "payUrl": None,
             "orderId": order_id,
             "message": f"MoMo request failed: {str(e)}"
         }
     except Exception as e:
-        print(f"MoMo General Error: {str(e)}")
         return {
             "payUrl": None,
             "orderId": order_id,
@@ -305,6 +306,14 @@ def create_momo_payment_request_with_order_id(user_id, course_id, amount, order_
     endpoint = os.getenv("MOMO_ENDPOINT")
     return_url = os.getenv("FRONTEND_BASE_URL") + "/payment/return"
     ipn_url = os.getenv("BACK_END_URL") + "/payment/momo/ipn"
+
+    # Kiểm tra cấu hình MoMo
+    if not partner_code or not access_key or not secret_key or not endpoint:
+        return {
+            "payUrl": None,
+            "orderId": order_id,
+            "message": "MoMo configuration is not set up properly"
+        }
 
     
     request_data = {
@@ -336,7 +345,6 @@ def create_momo_payment_request_with_order_id(user_id, course_id, amount, order_
 
 
     try:
-        
         response = requests.post(endpoint, json=request_data, timeout=30)
         response_data = response.json()
 
@@ -355,14 +363,12 @@ def create_momo_payment_request_with_order_id(user_id, course_id, amount, order_
             }
 
     except requests.exceptions.RequestException as e:
-        print(f"MoMo Request Error: {str(e)}")
         return {
             "payUrl": None,
             "orderId": order_id,
             "message": f"MoMo request failed: {str(e)}"
         }
     except Exception as e:
-        print(f"MoMo General Error: {str(e)}")
         return {
             "payUrl": None,
             "orderId": order_id,
@@ -403,7 +409,6 @@ def verify_momo_signature(params):
         hashlib.sha256
     ).hexdigest()
 
-
     return calculated_signature == received_signature
 
 def process_momo_ipn(params):
@@ -413,12 +418,10 @@ def process_momo_ipn(params):
     if not verify_momo_signature(params):
         return {"resultCode": 97, "message": "Invalid signature"}
 
-
     
     result_code = params.get("resultCode")
     order_id = params.get("orderId")
     order_info = params.get("orderInfo", "")
-
 
     
     if not order_id:
@@ -430,13 +433,11 @@ def process_momo_ipn(params):
             order_id, payment_success=True
         )
 
-
         if success:
             return {"resultCode": 0, "message": "Confirm Success"}
         else:
             return {"resultCode": 2, "message": f"Update failed: {message}"}
     else:
-        
         update_enrollment_payment_status_by_order_id(
             order_id, payment_success=False
         )

@@ -62,16 +62,6 @@ class LessonInChapterDumpSchema(Schema):
     content_url = fields.Str(required=False)
     is_published = fields.Bool()
 class LessonSchema(Schema):
-    # id = fields.Int(dump_only=True)
-    # title = fields.Str(required=True)
-    # description = fields.Str(required=True)
-    # type  = fields.Str(required=True)
-    # content_url = fields.Str(required=False)
-    # image = fields.Str()
-    # is_published = fields.Boolean()
-    # order = fields.Int()
-    # is_locked = fields.Boolean()
-    # chapter_id = fields.Int()
     id           = fields.Int(dump_only=True)
     title        = fields.Str(required=True)
     description  = fields.Str(required=True)
@@ -119,3 +109,30 @@ class EnrollmentResponseSchema(Schema):
 class CategorySchema(Schema):
     id = fields.Int(required=True)
     name = fields.Str(required=True)
+
+from marshmallow import Schema, fields
+from .user import UserSchema  # nếu bạn muốn nested user
+
+class LessonHistoryListSchema(Schema):
+    id = fields.Int(dump_only=True)
+    action = fields.Str(required=True)
+    created_at = fields.DateTime(dump_only=True)
+    lesson_id = fields.Int()
+
+class LessonHistorySchema(Schema):
+    id = fields.Int(dump_only=True)
+    action = fields.Str(required=True)  # 'create' hoặc 'update'
+    title = fields.Str()
+    description = fields.Str()
+    type = fields.Str()   # Enum Type (text/video/file/image)
+    content_url = fields.Str()
+    image = fields.Str()
+    is_published = fields.Boolean()
+    order = fields.Int()
+    is_locked = fields.Boolean()
+    created_at = fields.DateTime(dump_only=True)
+
+    # nested relationships
+    lesson_id = fields.Int()
+    user_id = fields.Int()
+    # user = fields.Nested(UserSchema, dump_only=True)  # nếu muốn trả thông tin user luôn
