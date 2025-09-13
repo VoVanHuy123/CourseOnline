@@ -37,6 +37,7 @@ class CourseAdmin(ModelView):
     column_list = ['id', 'title', 'price', 'teacher_id']
 def init_admin(app):
     admin = Admin(app, name="Admin Panel", template_mode="bootstrap4",index_view=AdminIndexView())
+    admin.add_view(ModelView(User, db.session))
     admin.add_view(StudentAdmin(Student, db.session))
     admin.add_view(TeacherAdmin(Teacher, db.session))
     admin.add_view(ModelView(Category, db.session))
